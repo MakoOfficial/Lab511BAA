@@ -199,6 +199,10 @@ class Attn_UNet(nn.Module):
         return d1, x1, x2, x3, x4, x5, attn1, attn2, attn3, attn4
 
 
+def get_Attn_Unet(img_ch=1, output_ch=1):
+    return Attn_UNet(img_ch=img_ch, output_ch=output_ch)
+
+
 if __name__ == '__main__':
     unet = Attn_UNet(img_ch=1, output_ch=1)
     print(f"Origin Unet: {sum( p.nelement() for p in unet.parameters() if p.requires_grad == True) / 1e6}M")
