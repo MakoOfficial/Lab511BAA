@@ -81,8 +81,8 @@ def log_losses_to_csv(training_loss, mean_attention_loss, val_loss, val_attn, co
     # 追加写入损失值
     with open(log_file_path, mode='a', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow([round(training_loss.item(), 4), round(mean_attention_loss.item(), 5),
-                         round(val_loss.item(), 3), round(val_attn.item(), 5),
+        writer.writerow([round(training_loss, 4), round(mean_attention_loss, 5),
+                         round(val_loss, 3), round(val_attn, 5),
                          round(cost_time, 2), lr])
 
     # 打印到终端

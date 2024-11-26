@@ -4,8 +4,13 @@ from torchvision import transforms
 from PIL import Image
 
 RSNA_transform_train = transforms.Compose([
-    transforms.RandomAffine(degrees=(5, 10)),
-    transforms.RandomHorizontalFlip(),
+    transforms.RandomResizedCrop(256, scale=(0.75, 1.0)),
+    transforms.RandomAffine(
+        degrees=20,
+        translate=(0.2, 0.2),
+        scale=(0.8, 1.2),
+        fill=0),
+    transforms.RandomHorizontalFlip(p=0.5),
     transforms.Resize((256, 256)),
     transforms.ToTensor(),  # 转换为张量，并将像素值归一化到 [0, 1]
 ])
