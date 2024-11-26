@@ -12,11 +12,9 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Dataset
 
 from datasets import RSNATrainDataset, RSNAValidDataset
-from utils import L1_penalty, log_losses_to_csv, save_attn_KD, \
-    attn_offset_kl_loss_firstStage
+from utils import L1_penalty, log_losses_to_csv
 
 from Student.student_model import get_student
-from Unet.UNets import get_Attn_Unet
 
 warnings.filterwarnings("ignore")
 
@@ -81,8 +79,8 @@ def train_fn(train_loader, loss_fn, optimizer):
         loss = loss_fn(y_pred, label)
 
         # backward,calculate gradients
-        # penalty_loss = L1_penalty(student_model, 1e-5)
-        total_loss = loss
+        penalty_loss = L1_penalty(student_model, 1e-5)
+        total_loss = loss + penalty_loss
         total_loss.backward()
 
         # backward,update parameter
