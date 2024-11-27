@@ -21,12 +21,12 @@ from Unet.UNets import get_Attn_Unet
 warnings.filterwarnings("ignore")
 
 flags = {}
-flags['lr'] = 1e-3
+flags['lr'] = 5e-4
 flags['batch_size'] = 32
 flags['num_workers'] = 8
 flags['num_epochs'] = 100
-flags['data_dir'] = 'D:/BoneAgeAssessment/RSNA'
-flags['teacher_path'] = "ckp/Unet/unet_segmentation_Attn_UNet.pth"
+flags['data_dir'] = '../archive/'
+flags['teacher_path'] = "../unet_segmentation_Attn_UNet.pth"
 flags['save_path'] = './KD_Output'
 flags['model_name'] = 'KD_modify_firstConv_RandomCrop'
 flags['seed'] = 1
@@ -84,14 +84,15 @@ def train_fn(train_loader, loss_fn, optimizer):
         train_attn_loss = attn_offset_kl_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
 
         # backward,calculate gradients
-        total_loss = loss + flags['attn_loss_ratio'] * train_attn_loss
+        penalty_loss = L1_penalty(student_model, 1e-5)
+        total_loss = loss + penalty_loss + flags['attn_loss_ratio'] * train_attn_loss
         total_loss.backward()
 
         # backward,update parameter
         optimizer.step()
         batch_loss = loss.item()
         batch_attn_loss = train_attn_loss.item()
-        print(f"batch_loss: {batch_loss}, batch_attn_loss: {batch_attn_loss}")
+        print(f"batch_loss: {batch_loss}, batch_attn_loss: {batch_attn_loss}, penalty_loss: {penalty_loss.item()}")
 
         training_loss += batch_loss
         attention_loss += batch_attn_loss
@@ -196,7 +197,7 @@ if __name__ == "__main__":
     train_path = os.path.join(data_dir, "train")
     valid_path = os.path.join(data_dir, "valid")
 
-    train_csv = os.path.join(data_dir, "train_2K.csv")
+    train_csv = os.path.join(data_dir, "train.csv")
     train_df = pd.read_csv(train_csv)
     valid_csv = os.path.join(data_dir, "valid.csv")
     valid_df = pd.read_csv(valid_csv)
