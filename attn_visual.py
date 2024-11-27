@@ -63,9 +63,10 @@ if __name__ == '__main__':
         param.requires_grad = False
     student_model.eval()
 
-    age = 46
+    age = 120
     gender = torch.zeros((1, 1), dtype=torch.float32)
-    image_path = '../RSNA/train/7038.png'
+    # image_path = '../RSNA/train/7038.png'
+    image_path = '../RSNA/valid/15504.png'
     # 读取和预处理图片
     img = Image.open(image_path).convert('L')
     img = RSNA_transform_val(img).unsqueeze(0)
