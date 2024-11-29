@@ -66,5 +66,17 @@ class RSNAValidDataset(BaseDataset):
         return (RSNA_transform_val(image), Tensor([row['male']])), row['boneage']
 
 
+class RSNATestDataset(BaseDataset):
+    def __init__(self, df, file_path, age_mean, age_div):
+        super().__init__(df, file_path, age_mean, age_div)
+        df['id_int'] = df['id'].astype('float32')
+
+    def __getitem__(self, index):
+        row, image_path = self.get_image_path(index)
+        image = Image.open(image_path).convert('L')
+
+        return (RSNA_transform_val(image), Tensor([row['male']])), row['boneage'], row['id_int']
+
+
 if __name__ == '__main__':
     pic = Image.open('data/TSRS_RSNA-Articular-Surface/train/1377.jpg').convert('L')

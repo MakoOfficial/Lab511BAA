@@ -90,6 +90,27 @@ def log_losses_to_csv(training_loss, mean_attention_loss, val_loss, val_attn, co
           f"Val Attn Loss: {val_attn}, Cost Time: {round(cost_time, 2)}, LR: {lr}")
 
 
+def log_valid_result_to_csv(id_list, boneage_list, male_list, pred_list, loss_list, log_file_path):
+    length = len(id_list)
+    # 确保目标文件夹存在
+    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+
+    # 如果文件不存在，则创建并写入表头
+    if not os.path.exists(log_file_path):
+        with open(log_file_path, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["id", "boneage", "male", "pred", "loss"])
+
+    # 追加写入损失值
+    with open(log_file_path, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        for i in range(length):
+            if loss_list[i].item() > 10:
+                writer.writerow([id_list[i].item(), boneage_list[i].item(),
+                                 male_list[i].item(), round(pred_list[i].item(), 2),
+                                 round(loss_list[i].item(), 2)])
+
+
 def save_attn_KD(t1, t2, t3, t4, s1, s2, s3, s4, save_path):
     fig, axes = plt.subplots(2, 4, figsize=(15, 5))
 
