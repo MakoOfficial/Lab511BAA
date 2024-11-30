@@ -2,15 +2,15 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
+from PIL import Image
 from tqdm import tqdm
 import UNets
 import numpy as np
 import random
 
-from UnetDataset import SegmentationDataset
-
+from UnetDataset import SegmentationTripleDataset
 
 seed = 1
 torch.manual_seed(seed)
@@ -36,6 +36,52 @@ def init_xavier(m):  # 参数初始化
         nn.init.xavier_normal_(m.weight)
 
 
+class PairedTransform:
+    def __init__(self, transform):
+        self.transform = transform
+        # 可以添加其他的变换
+
+    def __call__(self, image, label):
+        # 随机设置变换参数
+        seed = torch.random.seed()
+        # 图像应用变换
+        torch.manual_seed(seed)
+        image = self.transform(image)
+        # 掩码应用相同的变换
+        torch.manual_seed(seed)
+        label = self.transform(label)
+        return image, label
+
+
+# 定义预处理，加载器
+class SegmentationDataset(Dataset):
+    def __init__(self, image_dir, label_dir, mask_dir, transform=None):
+        self.image_dir = image_dir
+        self.label_dir = label_dir
+        self.mask_dir = mask_dir
+        self.transform = PairedTransform(transform=transform)
+        self.images = os.listdir(image_dir)
+        self.labels = os.listdir(label_dir)
+        self.masks = os.listdir(mask_dir)
+        self.images.sort()
+        self.labels.sort()
+        self.masks.sort()
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        img_path = os.path.join(self.image_dir, self.images[idx])
+        label_path = os.path.join(self.label_dir, self.labels[idx])
+
+        image = Image.open(img_path).convert('L')
+        label = Image.open(label_path).convert('L')
+
+        image, label = self.transform(image, label)
+
+        return image, label
+
+
 # 定义训练方法
 def train(net, train_dataloader, valid_dataloader, device, num_epoch, lr, init=True):
     if init:
@@ -43,7 +89,8 @@ def train(net, train_dataloader, valid_dataloader, device, num_epoch, lr, init=T
     print('training on:', device)
     net.to(device)
 
-    criterion = nn.BCELoss()  # 二分类交叉熵损失,注意output后要sigmoid
+    # criterion = nn.BCELoss()  # 二分类交叉熵损失,注意output后要sigmoid
+    criterion = nn.CrossEntropyLoss()  # 三分类交叉熵损失，注意output后不要，CE函数隐式计算sigmoid
     optimizer = optim.Adam(net.parameters(), lr=lr)
     best_loss = 1000
     for epoch in range(num_epoch):
@@ -54,9 +101,9 @@ def train(net, train_dataloader, valid_dataloader, device, num_epoch, lr, init=T
         for data, label in tqdm(train_dataloader):
             data, label = data.to(device), label.to(device)
             predict = net(data)
-            predict = torch.nn.functional.sigmoid(predict)
+            # predict = torch.nn.functional.sigmoid(predict)
             # 这里展平为了方便计算损失
-            predict_flat = predict.view(predict.size(0), -1)
+            predict_flat = predict.view(predict.size(0), 3, -1)
             label_flat = label.view(label.size(0), -1)
 
             loss = criterion(predict_flat, label_flat)
@@ -77,9 +124,9 @@ def train(net, train_dataloader, valid_dataloader, device, num_epoch, lr, init=T
                 data, label = data.to(device), label.to(device)
                 predict = net(data)
 
-                predict = torch.nn.functional.sigmoid(predict)
+                # predict = torch.nn.functional.sigmoid(predict)
                 # 这里展平为了方便计算损失
-                predict_flat = predict.view(predict.size(0), -1)
+                predict_flat = predict.view(predict.size(0), 3, -1)
                 label_flat = label.view(label.size(0), -1)
                 loss = criterion(predict_flat, label_flat)
                 test_loss += loss.item()
@@ -111,20 +158,22 @@ if __name__ == '__main__':
     # 定义数据集路径
     train_image_dir = '../../../ARAA/TSRS_RSNA-Articular-Surface/train/'
     train_label_dir = '../../../ARAA/TSRS_RSNA-Articular-Surface/train_labels_gray/'
+    train_mask_dir = '../../../ARAA/TSRS_RSNA-Articular-Surface/train_mask_resize/'
 
     test_image_dir = '../../../ARAA/TSRS_RSNA-Articular-Surface/val'
     test_label_dir = '../../../ARAA/TSRS_RSNA-Articular-Surface/val_labels_gray'
+    test_mask_dir = '../../../ARAA/TSRS_RSNA-Articular-Surface/valid_mask_resize'
 
     # 装载数据，设定模型
-    trainDataset = SegmentationDataset(train_image_dir, train_label_dir, transform=transform_train)
+    trainDataset = SegmentationTripleDataset(train_image_dir, train_label_dir, train_mask_dir, transform=transform_train)
     trainLoader = DataLoader(trainDataset, batch_size=16, shuffle=True, num_workers=2)
 
-    testDataset = SegmentationDataset(test_image_dir, test_label_dir, transform=transform_val)
+    testDataset = SegmentationTripleDataset(test_image_dir, test_label_dir, test_mask_dir, transform=transform_val)
     testLoader = DataLoader(testDataset, batch_size=16, shuffle=False, num_workers=2)
 
-    segment_model = UNets.Attn_UNet(img_ch=1, output_ch=1).cuda()
+    segment_model = UNets.Attn_UNet(img_ch=1, output_ch=3).cuda()
     model_save_path = 'ckp/Unet/'
     os.makedirs(model_save_path, exist_ok=True)
-    model_save_name = "unet_segmentation_Attn_Unet_RSNA_256.pth"
+    model_save_name = "unet_segmentation_Attn_Unet_RSNA_256_Triple.pth"
 
     train(segment_model, trainLoader, testLoader, device=torch.device('cuda:0'), num_epoch=50, lr=1e-4)
