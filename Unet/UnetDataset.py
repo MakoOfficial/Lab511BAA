@@ -88,42 +88,44 @@ class SegmentationTripleDataset(SegmentationDataset):
         mask = Image.open(mask_path).convert('L')
 
         image, label, mask = self.transform(image, label, mask)
+        mask = (mask*2).type(torch.LongTensor)
+        label = label.type(torch.LongTensor)
 
-        new_label = label + mask
+        merged_mask = torch.where(label == 1, 1, mask)
 
-        return image, new_label.type(torch.LongTensor)
+        return image, merged_mask.type(torch.LongTensor)
 
-#
-# from torchvision import transforms
-# import matplotlib.pyplot as plt
-#
-# if __name__ == '__main__':
-#     transform_train = transforms.Compose([
-#         transforms.RandomResizedCrop((800, 800), scale=(0.5, 1.0)),
-#         transforms.RandomAffine(degrees=(10, 20), translate=(0.1, 0.2)),
-#         transforms.RandomHorizontalFlip(),
-#         transforms.Resize((256, 256)),
-#         transforms.ToTensor(),
-#         # 如果需要的话，可以在这里添加归一化
-#     ])
-#     train_image_dir = 'E:/code/EmperorQiu/data/TSRS_RSNA-Articular-Surface/train/'
-#     train_label_dir = 'E:/code/EmperorQiu/data/TSRS_RSNA-Articular-Surface/train_labels_gray/'
-#     train_mask_dir = 'E:/code/EmperorQiu/data/TSRS_RSNA-Articular-Surface/train_mask_resize/'
-#     dataset = SegmentationTripleDataset(train_image_dir, train_label_dir, train_mask_dir, transform_train)
-#
-#     image, new_label = dataset.__getitem__(0)
-#     image = image * 255
-#     new_label = new_label * 127
-#
-#     fig, axes = plt.subplots(2, figsize=(15, 5))
-#
-#     axes[0].imshow(image.squeeze().numpy(), cmap='gray')
-#     axes[0].set_title('image')
-#     axes[0].axis('off')
-#
-#     axes[1].imshow(new_label.squeeze().numpy(), cmap='gray')
-#     axes[1].set_title('new_label')
-#     axes[1].axis('off')
-#
-#     plt.tight_layout()
-#     plt.show()
+
+from torchvision import transforms
+import matplotlib.pyplot as plt
+
+if __name__ == '__main__':
+    transform_train = transforms.Compose([
+        transforms.RandomResizedCrop((800, 800), scale=(0.5, 1.0)),
+        transforms.RandomAffine(degrees=(10, 20), translate=(0.1, 0.2)),
+        transforms.RandomHorizontalFlip(),
+        transforms.Resize((256, 256)),
+        transforms.ToTensor(),
+        # 如果需要的话，可以在这里添加归一化
+    ])
+    train_image_dir = 'E:/code/EmperorQiu/data/TSRS_RSNA-Articular-Surface/train/'
+    train_label_dir = 'E:/code/EmperorQiu/data/TSRS_RSNA-Articular-Surface/train_labels_gray/'
+    train_mask_dir = 'E:/code/EmperorQiu/data/TSRS_RSNA-Articular-Surface/train_mask_resize/'
+    dataset = SegmentationTripleDataset(train_image_dir, train_label_dir, train_mask_dir, transform_train)
+
+    image, new_label = dataset.__getitem__(0)
+    image = image * 255
+    new_label = new_label * 127
+
+    fig, axes = plt.subplots(2, figsize=(15, 5))
+
+    axes[0].imshow(image.squeeze().numpy(), cmap='gray')
+    axes[0].set_title('image')
+    axes[0].axis('off')
+
+    axes[1].imshow(new_label.squeeze().numpy(), cmap='gray')
+    axes[1].set_title('new_label')
+    axes[1].axis('off')
+
+    plt.tight_layout()
+    plt.show()
