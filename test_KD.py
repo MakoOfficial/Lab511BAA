@@ -81,8 +81,8 @@ if __name__ == "__main__":
     train_csv = os.path.join(data_dir, "train.csv")
     train_df = pd.read_csv(train_csv)
     valid_csv = os.path.join(data_dir, "valid.csv")
-    # valid_df = pd.read_csv("KD_All_Output/KD_modify_firstConv_RandomCrop/valid_loss_2.csv")
-    valid_df = pd.read_csv(valid_csv)
+    valid_df = pd.read_csv("KD_All_Output/KD_modify_firstConv_RandomCrop/valid_loss_2.csv")
+    # valid_df = pd.read_csv(valid_csv)
 
 
     boneage_mean = train_df['boneage'].mean()
@@ -92,7 +92,8 @@ if __name__ == "__main__":
     print(f'valid file save at {ckp_dir}')
 
     Test_set = RSNATestDataset(valid_df, valid_path, boneage_mean, boneage_div)
-    print(f"Test set length: {Test_set.__len__()}")
+    # print(f"Test set length: {Test_set.__len__()}")
+    print(f"Test set length: 1425")
 
     valid_loader = torch.utils.data.DataLoader(
         Test_set,
