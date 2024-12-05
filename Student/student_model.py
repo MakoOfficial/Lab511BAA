@@ -152,13 +152,8 @@ class Self_Attention_Adj(nn.Module):
         #   初始化V
         # self.weight = nn.Parameter(torch.empty(feature_size, output_size))
         # nn.init.kaiming_uniform_(self.weight)
-        self.to_out = nn.Sequential(
-            nn.Linear(feature_size, output_size),
-            nn.BatchNorm1d(output_size),
-            nn.LeakyReLU()
-        )
-
-        #   激活函数采用leak_relu
+        self.to_out = nn.Linear(feature_size, output_size)
+        self.bn = nn.BatchNorm2d(output_size)
         self.leak_relu = nn.LeakyReLU()
 
         self.softmax = nn.Softmax(dim=-1)
@@ -174,8 +169,10 @@ class Self_Attention_Adj(nn.Module):
 
         x = torch.matmul(A, node_feature)
         # x = F.leaky_relu((torch.matmul(x, self.weight)).transpose(1, 2))
-        x = self.to_out(x).transpose(1, 2)
-        return x.view(B, C, H, W), A
+        print(f"to_out_x.shape: {x.shape}")
+        x = self.to_out(x).transpose(1, 2).view(B, C, H, W)
+
+        return self.leak_relu(self.bn(x)), A
 
 
 class Attention(nn.Module):
@@ -186,11 +183,9 @@ class Attention(nn.Module):
         self.attend = nn.Softmax(dim=-1)
         self.to_qk = nn.Linear(dim, inner_dim * 2, bias=False)
 
-        self.to_out = nn.Sequential(
-            nn.Linear(dim, output_size),
-            nn.BatchNorm1d(output_size),
-            nn.LeakyReLU()
-        )
+        self.to_out = nn.Linear(dim, output_size)
+        self.bn = nn.BatchNorm2d(output_size)
+        self.relu = nn.LeakyReLU()
 
     def forward(self, x):
         B, C, H, W = x.shape
@@ -204,7 +199,9 @@ class Attention(nn.Module):
         print(f"attn.shape: {attn.shape}")
         print(f"node_feature.shape: {node_feature.shape}")
         out = einsum('b i j, b j d -> b i d', attn, node_feature)
-        return self.to_out(out).view(B, C, H, W), attn
+        out = self.to_out(out).transpose(1, 2).view(B, C, H, W)
+
+        return self.relu(self.bn(out)), attn
 
 
 class Student_GCN_Model(nn.Module):
@@ -243,6 +240,7 @@ class Student_GCN_Model(nn.Module):
         x0, attn0 = self.attn0(self.backbone0(image))
         x1, attn1 = self.attn1(self.backbone1(x0))
         x2, adj0 = self.adj_learning0(self.backbone2(x1))
+        print(f"x2.shape:{x2.shape}")
         x3, adj1 = self.adj_learning1(self.backbone3(x2))
 
         x = F.adaptive_avg_pool2d(x3, 1)
