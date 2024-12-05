@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class conv_block(nn.Module):
@@ -198,11 +199,177 @@ class Attn_UNet(nn.Module):
 
         return d1, x1, x2, x3, x4, x5, attn1, attn2, attn3, attn4
 
+    def forward_classifier(self, x):
+        # encoding path
+        x1 = self.Conv1(x)
+
+        x2 = self.Maxpool(x1)
+        x2 = self.Conv2(x2)
+
+        x3 = self.Maxpool(x2)
+        x3 = self.Conv3(x3)
+
+        x4 = self.Maxpool(x3)
+        x4 = self.Conv4(x4)
+
+        x5 = self.Maxpool(x4)
+        x5 = self.Conv5(x5)
+
+        x6 = self.Maxpool(x5)
+
+        return x2, x3, x4, x5, x6
+
+
+def conv3x3(in_planes: int, out_planes: int, stride: int = 1, padding: int = 1):
+    """3x3 convolution with padding"""
+    return nn.Conv2d(
+        in_planes,
+        out_planes,
+        kernel_size=3,
+        stride=stride,
+        padding=padding,
+        bias=False,
+    )
+
+def conv1x1(in_planes: int, out_planes: int, stride: int = 1):
+    """1x1 convolution"""
+    return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
+
+
+class Bottleneck(nn.Module):
+    def __init__(
+            self,
+            in_c: int,
+            inner_c: int,
+            stride: int = 2,
+            expansion: int = 4,
+    ) -> None:
+        super().__init__()
+        norm_layer = nn.BatchNorm2d
+        # Both self.conv2 and self.downsample layers downsample the input when stride != 1
+        self.conv1 = conv1x1(in_c, inner_c)
+        self.bn1 = norm_layer(inner_c)
+        self.conv2 = conv3x3(inner_c, inner_c, stride)
+        self.bn2 = norm_layer(inner_c)
+        self.conv3 = conv1x1(inner_c, inner_c * expansion)
+        self.bn3 = norm_layer(inner_c * expansion)
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = nn.Sequential(
+                conv1x1(in_c, inner_c * expansion, stride),
+                norm_layer(inner_c * expansion),
+            )
+        self.stride = stride
+
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out += identity
+        out = self.relu(out)
+
+        return out
+
+
+class Attn_UNet_classifier(nn.Module):
+    def __init__(self, backbone):
+        super(Attn_UNet_classifier, self).__init__()
+        self.backbone = backbone
+        for _, param in self.backbone.named_parameters():
+            param.requires_grad = False
+
+        self.down_block0 = nn.Sequential(
+            Bottleneck(128, 128, 2, 2),
+            Bottleneck(256, 256, 2, 2),
+            Bottleneck(512, 512, 2, 2),
+        )
+        self.down_block1 = nn.Sequential(
+            Bottleneck(256, 256, 2, 2),
+            Bottleneck(512, 512, 2, 2),
+        )
+        self.down_block2 = Bottleneck(512, 512, 2, 2)
+
+        self.gender_encoder = nn.Linear(1, 32)
+        self.gender_bn = nn.BatchNorm1d(32)
+
+        self.fc = nn.Sequential(
+            nn.Linear(4096 + 32, 1024),
+            nn.BatchNorm1d(1024),
+            nn.ReLU(),
+            nn.Linear(1024, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512, 1)
+        )
+
+    def forward(self, x, gender):
+        # encoding path
+        x2, x3, x4, x5, x6 = self.backbone.forward_classifier(x)
+        x2 = self.down_block0(x2)
+        x3 = self.down_block1(x3)
+        x4 = self.down_block2(x4)
+
+        x2 = F.adaptive_avg_pool2d(x2, 1)
+        x2 = torch.flatten(x2, 1)
+
+        x3 = F.adaptive_avg_pool2d(x3, 1)
+        x3 = torch.flatten(x3, 1)
+
+        x4 = F.adaptive_avg_pool2d(x4, 1)
+        x4 = torch.flatten(x4, 1)
+
+        x5 = F.adaptive_avg_pool2d(x5, 1)
+        x5 = torch.flatten(x5, 1)
+
+        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))
+
+        x_total = torch.cat((x2, x3, x4, x5, gender_encode), dim=1)
+
+        class_vector = self.fc(x_total)
+
+        return class_vector
+
 
 def get_Attn_Unet(img_ch=1, output_ch=1):
     return Attn_UNet(img_ch=img_ch, output_ch=output_ch)
 
 
+def get_Attn_Unet_classifier(unet_path):
+    unet = Attn_UNet(img_ch=1, output_ch=1)
+    unet.load_state_dict(torch.load(unet_path), strict=True)
+    classifier = Attn_UNet_classifier(unet)
+
+    return classifier
+
+
 if __name__ == '__main__':
     unet = Attn_UNet(img_ch=1, output_ch=1)
     print(f"Origin Unet: {sum( p.nelement() for p in unet.parameters() if p.requires_grad == True) / 1e6}M")
+
+    data = torch.rand((2, 1, 256, 256), dtype=torch.float32)
+    x1, x2, x3, x4, x5 = unet.forward_classifier(data)
+
+    print(f"x1.shape: {x1.shape}, x2.shape: {x2.shape}, x3.shape: {x3.shape}, "
+          f"x4.shape: {x4.shape}, x5.shape: {x5.shape}")
+
+    unet_classifier = get_Attn_Unet_classifier("../ckp/Unet/unet_segmentation_Attn_UNet.pth")
+    print(f"unet_classifier Unet: {sum(p.nelement() for p in unet_classifier.parameters() if p.requires_grad == True) / 1e6}M")
+
+    data = torch.rand((2, 1, 256, 256), dtype=torch.float32)
+    gender = torch.rand((2, 1), dtype=torch.float32)
+    class_vector = unet_classifier(data, gender)
+
+    print(f"class_vector.shape: {class_vector.shape}")
+
