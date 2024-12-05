@@ -5,8 +5,6 @@ from CBAM_block import CBAM
 from torchvision.models import resnet50, resnet18
 from torch import einsum
 
-from einops import rearrange
-from einops.layers.torch import Rearrange
 
 def get_pretrained_resnet50(pretrained=True):
     model = resnet50(pretrained=pretrained)
@@ -168,8 +166,6 @@ class Self_Attention_Adj(nn.Module):
         A = self.softmax(torch.matmul(Q, K.transpose(1, 2)) * self.scale)
 
         x = torch.matmul(A, node_feature)
-        # x = F.leaky_relu((torch.matmul(x, self.weight)).transpose(1, 2))
-        print(f"to_out_x.shape: {x.shape}")
         x = self.to_out(x).transpose(1, 2).view(B, C, H, W)
 
         return self.leak_relu(self.bn(x)), A
@@ -196,8 +192,6 @@ class Attention(nn.Module):
         dots = einsum('b i d, b j d -> b i j', q, k) * self.scale
 
         attn = self.attend(dots)
-        print(f"attn.shape: {attn.shape}")
-        print(f"node_feature.shape: {node_feature.shape}")
         out = einsum('b i j, b j d -> b i d', attn, node_feature)
         out = self.to_out(out).transpose(1, 2).view(B, C, H, W)
 
@@ -215,11 +209,11 @@ class Student_GCN_Model(nn.Module):
         self.attn1 = CBAM(in_planes=512, ratio=8, kernel_size=3)
 
         self.backbone2 = backbone[6]
-        self.adj_learning0 = Self_Attention_Adj(1024, 256, 1024)
-        # self.adj_learning0 = Attention(1024, 256, 1024)
+        # self.adj_learning0 = Self_Attention_Adj(1024, 256, 1024)
+        self.adj_learning0 = Attention(1024, 256, 1024)
         self.backbone3 = backbone[7]
-        self.adj_learning1 = Self_Attention_Adj(2048, 512, 2048)
-        # self.adj_learning1 = Attention(2048, 512, 2048)
+        # self.adj_learning1 = Self_Attention_Adj(2048, 512, 2048)
+        self.adj_learning1 = Attention(2048, 512, 2048)
 
         self.gender_encoder = nn.Linear(1, gender_encode_length)
         self.gender_bn = nn.BatchNorm1d(gender_encode_length)
@@ -240,7 +234,6 @@ class Student_GCN_Model(nn.Module):
         x0, attn0 = self.attn0(self.backbone0(image))
         x1, attn1 = self.attn1(self.backbone1(x0))
         x2, adj0 = self.adj_learning0(self.backbone2(x1))
-        print(f"x2.shape:{x2.shape}")
         x3, adj1 = self.adj_learning1(self.backbone3(x2))
 
         x = F.adaptive_avg_pool2d(x3, 1)

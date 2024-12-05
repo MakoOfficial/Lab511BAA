@@ -283,12 +283,20 @@ class Bottleneck(nn.Module):
         return out
 
 
-class Attn_UNet_classifier(nn.Module):
+class Attn_Unet_Classifier(nn.Module):
     def __init__(self, backbone):
-        super(Attn_UNet_classifier, self).__init__()
+        super(Attn_Unet_Classifier, self).__init__()
         self.backbone = backbone
         for _, param in self.backbone.named_parameters():
             param.requires_grad = False
+
+    def get_features(self, x):
+        return self.backbone.forward_classifier(x)
+
+
+class Attn_UNet_classifier_First(Attn_Unet_Classifier):
+    def __init__(self, backbone):
+        super(Attn_UNet_classifier_First, self).__init__(backbone)
 
         self.down_block0 = nn.Sequential(
             Bottleneck(128, 128, 2, 2),
@@ -316,7 +324,7 @@ class Attn_UNet_classifier(nn.Module):
 
     def forward(self, x, gender):
         # encoding path
-        x2, x3, x4, x5, x6 = self.backbone.forward_classifier(x)
+        x2, x3, x4, x5, x6 = self.get_features(x)
         x2 = self.down_block0(x2)
         x3 = self.down_block1(x3)
         x4 = self.down_block2(x4)
@@ -349,7 +357,7 @@ def get_Attn_Unet(img_ch=1, output_ch=1):
 def get_Attn_Unet_classifier(unet_path):
     unet = Attn_UNet(img_ch=1, output_ch=1)
     unet.load_state_dict(torch.load(unet_path), strict=True)
-    classifier = Attn_UNet_classifier(unet)
+    classifier = Attn_Unet_Classifier(unet)
 
     return classifier
 
