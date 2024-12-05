@@ -138,6 +138,7 @@ class Student_Model_Res18(nn.Module):
 class Self_Attention_Adj(nn.Module):
     def __init__(self, feature_size, attention_size, output_size):
         super(Self_Attention_Adj, self).__init__()
+        self.scale = attention_size ** -0.5
         self.feature_size = feature_size
         #   初始化Q，先创建一个长为feature_size，宽为attention_size的随机参数，再放入参数组
         #   注:torch.empty() 创建任意数据类型的张量
@@ -149,13 +150,18 @@ class Self_Attention_Adj(nn.Module):
         nn.init.kaiming_uniform_(self.key)
 
         #   初始化V
-        self.weight = nn.Parameter(torch.empty(feature_size, output_size))
-        nn.init.kaiming_uniform_(self.weight)
+        # self.weight = nn.Parameter(torch.empty(feature_size, output_size))
+        # nn.init.kaiming_uniform_(self.weight)
+        self.to_out = nn.Sequential(
+            nn.Linear(feature_size, output_size),
+            nn.BatchNorm1d(output_size),
+            nn.LeakyReLU()
+        )
 
         #   激活函数采用leak_relu
         self.leak_relu = nn.LeakyReLU()
 
-        self.softmax = nn.Softmax(dim=1)
+        self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x):
         B, C, H, W = x.shape
@@ -164,10 +170,11 @@ class Self_Attention_Adj(nn.Module):
         Q = self.leak_relu(torch.matmul(node_feature, self.queue))
         K = self.leak_relu(torch.matmul(node_feature, self.key))
 
-        A = self.softmax(torch.matmul(Q, K.transpose(1, 2)))
+        A = self.softmax(torch.matmul(Q, K.transpose(1, 2)) * self.scale)
 
         x = torch.matmul(A, node_feature)
-        x = F.leaky_relu((torch.matmul(x, self.weight)).transpose(1, 2))
+        # x = F.leaky_relu((torch.matmul(x, self.weight)).transpose(1, 2))
+        x = self.to_out(x).transpose(1, 2)
         return x.view(B, C, H, W), A
 
 
@@ -180,7 +187,7 @@ class Attention(nn.Module):
         self.to_qk = nn.Linear(dim, inner_dim * 2, bias=False)
 
         self.to_out = nn.Sequential(
-            nn.Linear(inner_dim, output_size),
+            nn.Linear(dim, output_size),
             nn.BatchNorm1d(output_size),
             nn.LeakyReLU()
         )
@@ -194,9 +201,9 @@ class Attention(nn.Module):
         dots = einsum('b i d, b j d -> b i j', q, k) * self.scale
 
         attn = self.attend(dots)
-
+        print(f"attn.shape: {attn.shape}")
+        print(f"node_feature.shape: {node_feature.shape}")
         out = einsum('b i j, b j d -> b i d', attn, node_feature)
-        out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out).view(B, C, H, W), attn
 
 
@@ -211,11 +218,11 @@ class Student_GCN_Model(nn.Module):
         self.attn1 = CBAM(in_planes=512, ratio=8, kernel_size=3)
 
         self.backbone2 = backbone[6]
-        # self.adj_learning0 = Self_Attention_Adj(1024, 256, 1024)
-        self.adj_learning0 = Attention(1024, 256, 1024)
+        self.adj_learning0 = Self_Attention_Adj(1024, 256, 1024)
+        # self.adj_learning0 = Attention(1024, 256, 1024)
         self.backbone3 = backbone[7]
-        # self.adj_learning1 = Self_Attention_Adj(2048, 512, 2048)
-        self.adj_learning1 = Attention(2048, 512, 2048)
+        self.adj_learning1 = Self_Attention_Adj(2048, 512, 2048)
+        # self.adj_learning1 = Attention(2048, 512, 2048)
 
         self.gender_encoder = nn.Linear(1, gender_encode_length)
         self.gender_bn = nn.BatchNorm1d(gender_encode_length)
