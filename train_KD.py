@@ -25,9 +25,9 @@ flags['lr'] = 5e-4
 flags['batch_size'] = 32
 flags['num_workers'] = 8
 flags['num_epochs'] = 100
-flags['data_dir'] = '../RSNA/'
-flags['teacher_path'] = "./ckp/Unet/unet_segmentation_Attn_UNet.pth"
-flags['save_path'] = './KD_All_Output_A5000'
+flags['data_dir'] = '../archive/'
+flags['teacher_path'] = "../unet_segmentation_Attn_UNet_RSNA_256.pth"
+flags['save_path'] = './KD_All_Output_3090'
 flags['model_name'] = 'KD_Res50_CBAM_GCN'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
@@ -92,7 +92,7 @@ def train_fn(train_loader, loss_fn, optimizer):
         optimizer.step()
         batch_loss = loss.item()
         batch_attn_loss = train_attn_loss.item()
-        print(f"batch_loss: {batch_loss}, batch_attn_loss: {batch_attn_loss}, penalty_loss: {penalty_loss.item()}")
+        # print(f"batch_loss: {batch_loss}, batch_attn_loss: {batch_attn_loss}, penalty_loss: {penalty_loss.item()}")
 
         training_loss += batch_loss
         attention_loss += batch_attn_loss
@@ -130,7 +130,7 @@ def evaluate_fn(val_loader):
             attn_loss += batch_attn_loss
 
             if batch_idx == len(val_loader) - 1:
-                save_attn_KD(t1[0], t2[0], t3[0], t4[0], s1[0], s2[0], s3[0], s4[0], save_path)
+                save_attn_KD(t1[0], t2[0], t3[0], t4[0], s1[0], s2[0], s3[0][0].view(32, 32), s4[0][0].view(16, 16), save_path)
 
     return mae_loss, attn_loss, val_total_size
 
@@ -190,7 +190,8 @@ if __name__ == "__main__":
     teacher.eval()
     #   prepare student model
     # student_model = get_student().cuda()
-    student_model = get_student_res18().cuda()
+    # student_model = get_student_res18().cuda()
+    student_model = get_student_GCN().cuda()
     student_model.train()
     #   load data setting
     data_dir = flags['data_dir']

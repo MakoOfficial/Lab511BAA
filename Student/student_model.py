@@ -3,7 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from CBAM_block import CBAM
 from torchvision.models import resnet50, resnet18
+from torch import einsum
 
+from einops import rearrange
+from einops.layers.torch import Rearrange
 
 def get_pretrained_resnet50(pretrained=True):
     model = resnet50(pretrained=pretrained)
@@ -163,11 +166,38 @@ class Self_Attention_Adj(nn.Module):
 
         A = self.softmax(torch.matmul(Q, K.transpose(1, 2)))
 
-        print(A.shape)
-        print(node_feature.shape)
         x = torch.matmul(A, node_feature)
         x = F.leaky_relu((torch.matmul(x, self.weight)).transpose(1, 2))
         return x.view(B, C, H, W), A
+
+
+class Attention(nn.Module):
+    def __init__(self, dim, inner_dim, output_size):
+        super().__init__()
+        self.scale = inner_dim ** -0.5
+
+        self.attend = nn.Softmax(dim=-1)
+        self.to_qk = nn.Linear(dim, inner_dim * 2, bias=False)
+
+        self.to_out = nn.Sequential(
+            nn.Linear(inner_dim, output_size),
+            nn.BatchNorm1d(output_size),
+            nn.LeakyReLU()
+        )
+
+    def forward(self, x):
+        B, C, H, W = x.shape
+        node_feature = x.flatten(start_dim=2)
+        node_feature = node_feature.transpose(1, 2)  # 将x的第二个维度和第三个维度转置
+        q, k = self.to_qk(node_feature).chunk(2, dim=-1)  # (b, n(65), dim*2) ---> 2 * (b, n, dim)
+
+        dots = einsum('b i d, b j d -> b i j', q, k) * self.scale
+
+        attn = self.attend(dots)
+
+        out = einsum('b i j, b j d -> b i d', attn, node_feature)
+        out = rearrange(out, 'b h n d -> b n (h d)')
+        return self.to_out(out).view(B, C, H, W), attn
 
 
 class Student_GCN_Model(nn.Module):
@@ -181,9 +211,11 @@ class Student_GCN_Model(nn.Module):
         self.attn1 = CBAM(in_planes=512, ratio=8, kernel_size=3)
 
         self.backbone2 = backbone[6]
-        self.adj_learning0 = Self_Attention_Adj(1024, 256, 1024)
+        # self.adj_learning0 = Self_Attention_Adj(1024, 256, 1024)
+        self.adj_learning0 = Attention(1024, 256, 1024)
         self.backbone3 = backbone[7]
-        self.adj_learning1 = Self_Attention_Adj(2048, 512, 2048)
+        # self.adj_learning1 = Self_Attention_Adj(2048, 512, 2048)
+        self.adj_learning1 = Attention(2048, 512, 2048)
 
         self.gender_encoder = nn.Linear(1, gender_encode_length)
         self.gender_bn = nn.BatchNorm1d(gender_encode_length)
