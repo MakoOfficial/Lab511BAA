@@ -15,7 +15,7 @@ from datasets import RSNATrainDataset, RSNAValidDataset
 from utils import L1_penalty, log_losses_to_csv, save_attn_KD, \
     attn_offset_kl_loss_firstStage
 
-from Student.student_model import get_student, get_student_res18
+from Student.student_model import get_student, get_student_res18, get_student_GCN
 from Unet.UNets import get_Attn_Unet
 
 warnings.filterwarnings("ignore")
@@ -28,7 +28,7 @@ flags['num_epochs'] = 100
 flags['data_dir'] = '../RSNA/'
 flags['teacher_path'] = "./ckp/Unet/unet_segmentation_Attn_UNet.pth"
 flags['save_path'] = './KD_All_Output_A5000'
-flags['model_name'] = 'KD_Res18'
+flags['model_name'] = 'KD_Res50_CBAM_GCN'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
