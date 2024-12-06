@@ -209,7 +209,8 @@ class _Self_Attention_Adj(nn.Module):
 
         self.leak_relu = nn.LeakyReLU()
 
-        self.softmax = nn.Softmax(dim=1)
+        # self.softmax = nn.Softmax(dim=1)
+        self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x):
         x = x.transpose(1, 2)
@@ -289,7 +290,7 @@ class Student_GCN_Model(nn.Module):
         x3, adj = self.gat(x3)
 
         x = F.adaptive_avg_pool1d(x3, 1)
-        x = torch.squeeze(x)
+        x = torch.flatten(x, 1)
 
         gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))
 
