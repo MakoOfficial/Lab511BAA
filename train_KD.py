@@ -25,7 +25,7 @@ flags['lr'] = 5e-4
 flags['batch_size'] = 32
 flags['num_workers'] = 8
 flags['num_epochs'] = 100
-flags['data_dir'] = '../RSNA/'
+flags['data_dir'] = 'C:/BoneAgeAssessment/RSNA'
 flags['teacher_path'] = "./ckp/Unet/unet_segmentation_Attn_UNet.pth"
 flags['backbone_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = './KD_All_Output_A5000'
@@ -131,7 +131,7 @@ def evaluate_fn(val_loader):
             attn_loss += batch_attn_loss
 
             if batch_idx == len(val_loader) - 1:
-                save_attn_KD(t1[0], t2[0], t3[0], t4[0], s1[0], s2[0], s3[0][0].view(32, 32), s4[0][0].view(16, 16), save_path)
+                save_attn_KD(t1[0], t2[0], t3[0], t4[0], s1[0], s2[0], s3[0][0].view(16, 16), s4[0][0].view(16, 16), save_path)
 
     return mae_loss, attn_loss, val_total_size
 
