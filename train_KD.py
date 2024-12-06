@@ -25,10 +25,11 @@ flags['lr'] = 5e-4
 flags['batch_size'] = 32
 flags['num_workers'] = 8
 flags['num_epochs'] = 100
-flags['data_dir'] = '../archive/'
-flags['teacher_path'] = "../unet_segmentation_Attn_UNet_RSNA_256.pth"
-flags['save_path'] = './KD_All_Output_3090'
-flags['model_name'] = 'KD_Res50_CBAM_GCN'
+flags['data_dir'] = '../RSNA/'
+flags['teacher_path'] = "./ckp/Unet/unet_segmentation_Attn_UNet.pth"
+flags['backbone_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
+flags['save_path'] = './KD_All_Output_A5000'
+flags['model_name'] = 'KD_Res50_CBAM_GAT'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
@@ -140,7 +141,7 @@ def training_start(flags):
     best_loss = float('inf')
     loss_fn = nn.L1Loss(reduction='sum')
 
-    optimizer = torch.optim.Adam(student_model.parameters(), lr=flags['lr'], weight_decay=flags['weight_decay'])
+    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, student_model.parameters()), lr=flags['lr'], weight_decay=flags['weight_decay'])
     scheduler = StepLR(optimizer, step_size=flags['lr_decay_step'], gamma=flags['lr_decay_ratio'])
 
     ## Trains
@@ -191,8 +192,7 @@ if __name__ == "__main__":
     #   prepare student model
     # student_model = get_student().cuda()
     # student_model = get_student_res18().cuda()
-    student_model = get_student_GCN().cuda()
-    student_model.train()
+    student_model = get_student_GCN(backbone_path=flags['backbone_path']).cuda()
     #   load data setting
     data_dir = flags['data_dir']
 
