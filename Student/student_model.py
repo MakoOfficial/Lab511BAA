@@ -198,28 +198,79 @@ class Attention(nn.Module):
         return self.relu(self.bn(out)), attn
 
 
+class _Self_Attention_Adj(nn.Module):
+    def __init__(self, feature_size, attention_size):
+        super(_Self_Attention_Adj, self).__init__()
+        self.queue = nn.Parameter(torch.empty(feature_size, attention_size))
+        nn.init.kaiming_uniform_(self.queue)
+
+        self.key = nn.Parameter(torch.empty(feature_size, attention_size))
+        nn.init.kaiming_uniform_(self.key)
+
+        self.leak_relu = nn.LeakyReLU()
+
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, x):
+        x = x.transpose(1, 2)
+        Q = self.leak_relu(torch.matmul(x, self.queue))
+        K = self.leak_relu(torch.matmul(x, self.key))
+
+        return self.softmax(torch.matmul(Q, K.transpose(1, 2)))
+
+
+class Graph_GCN(nn.Module):
+    def __init__(self, node_size, feature_size, output_size):
+        super(Graph_GCN, self).__init__()
+        self.node_size = node_size
+        self.feature_size = feature_size
+        self.output_size = output_size
+        self.weight = nn.Parameter(torch.empty(feature_size, output_size))
+        nn.init.kaiming_uniform_(self.weight)
+
+    def forward(self, x, A):
+        x = torch.matmul(A, x.transpose(1, 2))
+        return (torch.matmul(x, self.weight)).transpose(1, 2)
+
+
+class GAT(nn.Module):
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.adj_learning = _Self_Attention_Adj(2048, 256)
+        self.gconv = Graph_GCN(16 * 16, 2048, 1024)
+
+    def forward(self, x):
+        node_feature = x.view(-1, 2048, 16 * 16)
+        A = self.adj_learning(node_feature)
+        output = F.leaky_relu(self.gconv(node_feature, A))
+
+        return output, A
+
+
 class Student_GCN_Model(nn.Module):
-    def __init__(self, gender_encode_length, backbone, out_channels):
+    def __init__(self, backbone):
         super(Student_GCN_Model, self).__init__()
-        self.out_channels = out_channels
-        self.backbone0 = nn.Sequential(*backbone[0:5])
-        self.backbone0[0] = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.attn0 = CBAM(in_planes=256, ratio=8, kernel_size=3)
-        self.backbone1 = backbone[5]
-        self.attn1 = CBAM(in_planes=512, ratio=8, kernel_size=3)
+        # self.out_channels = out_channels
+        self.backbone0 = backbone.backbone0
+        self.attn0 = backbone.attn0
+        self.backbone1 = backbone.backbone1
+        self.attn1 = backbone.attn1
+        self.freeze_params()
 
-        self.backbone2 = backbone[6]
+        self.backbone2 = backbone.backbone2
         # self.adj_learning0 = Self_Attention_Adj(1024, 256, 1024)
-        self.adj_learning0 = Attention(1024, 256, 1024)
-        self.backbone3 = backbone[7]
+        # self.adj_learning0 = Attention(1024, 256, 1024)
+        self.backbone3 = backbone.backbone3
         # self.adj_learning1 = Self_Attention_Adj(2048, 512, 2048)
-        self.adj_learning1 = Attention(2048, 512, 2048)
+        # self.adj_learning1 = Attention(2048, 512, 2048)
+        self.gat = GAT()
 
-        self.gender_encoder = nn.Linear(1, gender_encode_length)
-        self.gender_bn = nn.BatchNorm1d(gender_encode_length)
+        self.gender_encoder = backbone.gender_encoder
+        self.gender_bn = backbone.gender_bn
 
         self.fc = nn.Sequential(
-            nn.Linear(out_channels + gender_encode_length, 1024),
+            nn.Linear(1024 + 32, 1024),
             nn.BatchNorm1d(1024),
             nn.ReLU(),
             # nn.Dropout(0.2),
@@ -233,12 +284,12 @@ class Student_GCN_Model(nn.Module):
     def forward(self, image, gender):
         x0, attn0 = self.attn0(self.backbone0(image))
         x1, attn1 = self.attn1(self.backbone1(x0))
-        x2, adj0 = self.adj_learning0(self.backbone2(x1))
-        x3, adj1 = self.adj_learning1(self.backbone3(x2))
+        x2 = self.backbone2(x1)
+        x3 = self.backbone3(x2)
+        x3, adj = self.gat(x3)
 
-        x = F.adaptive_avg_pool2d(x3, 1)
+        x = F.adaptive_avg_pool1d(x3, 1)
         x = torch.squeeze(x)
-        x = x.view(-1, self.out_channels)
 
         gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))
 
@@ -246,7 +297,17 @@ class Student_GCN_Model(nn.Module):
 
         x = self.fc(x)
 
-        return x, attn0, attn1, adj0, adj1
+        return x, attn0, attn1, adj, adj
+
+    def freeze_params(self):
+        for _, param in self.backbone0.named_parameters():
+            param.requires_grad = False
+        for _, param in self.attn0.named_parameters():
+            param.requires_grad = False
+        for _, param in self.backbone1.named_parameters():
+            param.requires_grad = False
+        for _, param in self.attn1.named_parameters():
+            param.requires_grad = False
 
 
 def get_student(pretrained=True):
@@ -257,8 +318,11 @@ def get_student_res18(pretrained=True):
     return Student_Model_Res18(32, *get_pretrained_resnet18(pretrained=pretrained))
 
 
-def get_student_GCN(pretrained=True):
-    return Student_GCN_Model(32, *get_pretrained_resnet50(pretrained=pretrained))
+def get_student_GCN(backbone_path):
+    backbone = Student_Model(32, *get_pretrained_resnet50())
+    if backbone_path is not None:
+        backbone.load_state_dict(torch.load(backbone_path))
+    return Student_GCN_Model(backbone)
 
 
 if __name__ == '__main__':
@@ -283,7 +347,7 @@ if __name__ == '__main__':
     # x, attn0, attn1, attn2, attn3 = student_res18(data, gender)
     # print(f"x: {x.shape}\nattn0: {attn0.shape}\nattn1: {attn1.shape}\nattn2: {attn2.shape}\nattn3: {attn3.shape}\n")
 
-    student_GCN_Model = Student_GCN_Model(32, *get_pretrained_resnet50()).cuda()
+    student_GCN_Model = get_student_GCN("../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin").cuda()
     print(f"student_GCN_Model: {sum(p.nelement() for p in student_GCN_Model.parameters() if p.requires_grad == True) / 1e6}M")
     x, attn0, attn1, attn2, attn3 = student_GCN_Model(data, gender)
     print(f"x: {x.shape}\nattn0: {attn0.shape}\nattn1: {attn1.shape}\nattn2: {attn2.shape}\nattn3: {attn3.shape}\n")
