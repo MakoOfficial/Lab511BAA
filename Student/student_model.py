@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from CBAM_block import CBAM
 from torchvision.models import resnet50, resnet18
 from torch import einsum
+from ContrastLearning.vit_model_BSPC import Vit_block
 
 
 def get_pretrained_resnet50(pretrained=True):
@@ -209,8 +210,8 @@ class _Self_Attention_Adj(nn.Module):
 
         self.leak_relu = nn.LeakyReLU()
 
-        # self.softmax = nn.Softmax(dim=1)
-        self.softmax = nn.Softmax(dim=-1)
+        self.softmax = nn.Softmax(dim=1)
+        # self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x):
         x = x.transpose(1, 2)
@@ -232,6 +233,7 @@ class Graph_GCN(nn.Module):
     def forward(self, x, A):
         x = torch.matmul(A, x.transpose(1, 2))
         return (torch.matmul(x, self.weight)).transpose(1, 2)
+
 
 
 class GAT(nn.Module):
@@ -262,16 +264,18 @@ class Student_GCN_Model(nn.Module):
         self.backbone2 = backbone.backbone2
         # self.adj_learning0 = Self_Attention_Adj(1024, 256, 1024)
         # self.adj_learning0 = Attention(1024, 256, 1024)
+        self.adj_learning0 = Vit_block(32, 1, 1024, 1024, 768)
         self.backbone3 = backbone.backbone3
         # self.adj_learning1 = Self_Attention_Adj(2048, 512, 2048)
         # self.adj_learning1 = Attention(2048, 512, 2048)
-        self.gat = GAT()
+        self.adj_learning1 = Vit_block(16, 1, 2048, 2048, 768)
+        # self.gat = GAT()
 
         self.gender_encoder = backbone.gender_encoder
         self.gender_bn = backbone.gender_bn
 
         self.fc = nn.Sequential(
-            nn.Linear(1024 + 32, 1024),
+            nn.Linear(2048 + 32, 1024),
             nn.BatchNorm1d(1024),
             nn.ReLU(),
             # nn.Dropout(0.2),
@@ -283,22 +287,23 @@ class Student_GCN_Model(nn.Module):
         )
 
     def forward(self, image, gender):
+        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))
         x0, attn0 = self.attn0(self.backbone0(image))
         x1, attn1 = self.attn1(self.backbone1(x0))
         x2 = self.backbone2(x1)
+        cls_token2, attn2 = self.adj_learning0(x2, gender_encode)
+        x2 = x2 + (x2*attn2)
         x3 = self.backbone3(x2)
-        x3, adj = self.gat(x3)
-
-        x = F.adaptive_avg_pool1d(x3, 1)
+        cls_token3, attn3 = self.adj_learning1(x3, gender_encode)
+        x3 = x3 + (x3 * attn3)
+        x = F.adaptive_avg_pool2d(x3, 1)
         x = torch.flatten(x, 1)
-
-        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))
 
         x = torch.cat([x, gender_encode], dim=1)
 
         x = self.fc(x)
 
-        return x, attn0, attn1, adj, adj
+        return x, attn0, attn1, attn2, attn3
 
     def freeze_params(self):
         for _, param in self.backbone0.named_parameters():

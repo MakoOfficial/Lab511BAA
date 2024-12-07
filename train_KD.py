@@ -82,21 +82,18 @@ def train_fn(train_loader, loss_fn, optimizer):
         label = label.squeeze()
 
         loss = loss_fn(y_pred, label)
-        train_attn_loss = attn_offset_kl_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
 
         # backward,calculate gradients
         penalty_loss = L1_penalty(student_model, 1e-5)
-        total_loss = loss + penalty_loss + flags['attn_loss_ratio'] * train_attn_loss
+        total_loss = loss + penalty_loss
         total_loss.backward()
 
         # backward,update parameter
         optimizer.step()
         batch_loss = loss.item()
-        batch_attn_loss = train_attn_loss.item()
         # print(f"batch_loss: {batch_loss}, batch_attn_loss: {batch_attn_loss}, penalty_loss: {penalty_loss.item()}")
 
         training_loss += batch_loss
-        attention_loss += batch_attn_loss
         total_size += batch_size
 
     return training_loss, attention_loss, total_size
@@ -124,14 +121,11 @@ def evaluate_fn(val_loader):
             y_pred = y_pred.squeeze()
             label = label.squeeze()
             batch_loss = F.l1_loss(y_pred, label, reduction='sum').item()
-            val_attn_loss = attn_offset_kl_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
-            batch_attn_loss = val_attn_loss.item()
 
             mae_loss += batch_loss
-            attn_loss += batch_attn_loss
 
             if batch_idx == len(val_loader) - 1:
-                save_attn_KD(t1[0], t2[0], t3[0], t4[0], s1[0], s2[0], s3[0][0].view(16, 16), s4[0][0].view(16, 16), save_path)
+                save_attn_KD(t1[0], t2[0], t3[0], t4[0], s1[0], s2[0], s3[0], s4[0], save_path)
 
     return mae_loss, attn_loss, val_total_size
 

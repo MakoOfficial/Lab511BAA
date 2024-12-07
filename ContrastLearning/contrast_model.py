@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from Student.student_model import get_student
-from vit_model import getViTBlock
+from vit_model_old import getViTBlock
 from Unet.UNets import Attention_block
 
 
