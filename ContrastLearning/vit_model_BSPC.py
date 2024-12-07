@@ -48,50 +48,31 @@ class Attention(nn.Module):
                  attn_drop_ratio=0.,
                  proj_drop_ratio=0.):
         super(Attention, self).__init__()
+        self.scale = qk_scale or dim ** -0.5
 
-        # After Q is multiplied by the transpose of K, it needs to be divided by a square root dk. The formula in the theory is introduced
-        self.scale = qk_scale or dim ** -0.5 #
+        self.norm = nn.LayerNorm(dim)
 
-        # Generate three Q, K, V matrices through a fully connected layer (some codes use three fully connected layers to generate them separately)
         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
-
 
         self.attn_drop = nn.Dropout(attn_drop_ratio)
 
-        # This fully connected layer is used to concatenate the results of multiple heads
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop_ratio)
 
-    # @get_local('attn_map')
     def forward(self, x):
-        # [batch_size, num_patches + 1, total_embed_dim]
-        # 这是传入x的维度;第0维是bs;第1维是有多少个patches,这里224/16=14,所以14*14=196个patches,+1是一个class_token;第2维数值上就是768;
         B, N, C = x.shape
 
-        # qkv(): -> [batch_size, num_patches + 1, 3 * total_embed_dim],先经过qkv这个全连接层,将最后的维度数变成三倍;
-
-        # reshape: -> [batch_size, num_patches + 1, 3, num_heads, embed_dim_per_head],再做这个reshape操作;
-        # 3:因为有qkv三个矩阵;self.num_heads:有多少个头; C//self.num_heads:每一个头对应的qkv的维度;
-
-        # permute: -> [3, batch_size, num_heads, num_patches + 1, embed_dim_per_head]
         qkv = self.qkv(x).reshape(B, N, 3, C).permute(2, 0, 1, 3)
 
-        # [batch_size, num_heads, num_patches + 1, embed_dim_per_head]，这一步之后q，k，v的维度就变成这样了;把他们单独取出来了(切片)；
-        q, k, v = qkv[0], qkv[1], qkv[2]  # make torchscript happy (cannot use tensor as tuple)
+        q, k, v = qkv[0], qkv[1], qkv[2]
 
-        # transpose: -> [batch_size, num_heads, embed_dim_per_head, num_patches + 1]：将k矩阵最后两个维度进行转置，再和q做矩阵乘法；
-        # @: multiply -> [batch_size, num_heads, num_patches + 1, num_patches + 1]：此时乘法之后的最后两个维度就变成这样；之后再除以一个根号dk的值；
         attn = (q @ k.transpose(-2, -1)) * self.scale
 
-        # 这里dim=-1就是针对每一行做一个softmax处理
         attn = attn.softmax(dim=-1)
         attn = self.attn_drop(attn)
 
         attn_map = attn
 
-        # @: multiply -> [batch_size, num_heads, num_patches + 1, embed_dim_per_head]：attention乘以矩阵v之后就是这个维度；
-        # transpose: -> [batch_size, num_patches + 1, num_heads, embed_dim_per_head]
-        # reshape: -> [batch_size, num_patches + 1, total_embed_dim]：将最后两个维度的信息拼接到一起，就是很多个head的结果concate到一起的操作；
         x = (attn @ v).transpose(1, 2).reshape(B, N, C)
         x = self.proj(x)  #再经过投影
         x = self.proj_drop(x)
@@ -108,12 +89,14 @@ class Mlp(nn.Module):
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
+        self.norm = nn.LayerNorm(in_features)
         self.fc1 = nn.Linear(in_features, hidden_features)
         self.act = act_layer()
         self.fc2 = nn.Linear(hidden_features, out_features)
         self.drop = nn.Dropout(drop)
 
     def forward(self, x):
+        x = self.norm(x)
         x = self.fc1(x)
         x = self.act(x)
         x = self.drop(x)
@@ -157,41 +140,32 @@ class Block(nn.Module):
 
     def forward(self, x):
         # 前向传播，很清晰
-        # x = x + self.drop_path(self.attn(self.norm1(x)))
-        # x = x + self.drop_path(self.mlp(self.norm2(x)))
-        x, attn_map = self.attn(x)
+        x, attn_map = self.attn(self.norm1(x))
         x = x + self.drop_path(x)
-        x = x + self.drop_path(self.mlp(x))
+        x = x + self.drop_path(self.mlp(self.norm2(x)))
 
         return x, attn_map
 
-EMBEDDING_DIM = 256
 
 class PatchEmbed(nn.Module):
     """
     2D Image to Patch Embedding
     """
 
-    # The embedding dimension of the VIT_base model is 768. If it is a larger model, the embedding depth will be larger.
-    def __init__(self, img_size=224, patch_size=16, in_c=3, embed_dim=EMBEDDING_DIM, norm_layer=None):
+    def __init__(self, img_size=256, patch_size=16, in_c=3, embed_dim=768):
         super().__init__()
         img_size = (img_size, img_size)
         patch_size = (patch_size, patch_size)
         self.img_size = img_size
         self.patch_size = patch_size
 
-        # Calculate how many patches to divide an image into
         self.grid_size = (img_size[0] // patch_size[0], img_size[1] // patch_size[1])
         self.num_patches = self.grid_size[0] * self.grid_size[1]
 
-        # Embedding using 2D convolution, input 3 channels, output 768 channels; step size = patch_size;
-        # Dimension from (224*224*3) -> (14*14*768)
         self.proj = nn.Conv2d(in_c, embed_dim, kernel_size=patch_size, stride=patch_size)
 
         # If norm_layer is not passed in, no operation will be performed
-        self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
-
-        self.pos_encoding = nn.Parameter(torch.randn(1, self.num_patches, embed_dim))
+        self.norm = nn.LayerNorm(embed_dim)
 
     def forward(self, x):
         B, C, H, W = x.shape
@@ -202,10 +176,7 @@ class PatchEmbed(nn.Module):
         # flatten: [B, C, H, W] -> [B, C, HW]
         # transpose: [B, C, HW] -> [B, HW, C]
 
-        # flatten从第二个维度开始,也就是H开始;再交换1,2两个维度
         x = self.proj(x).flatten(2).transpose(1, 2)
-
-        # x += self.pos_encoding
 
         x = self.norm(x)
         return x
@@ -226,6 +197,8 @@ class Vit_block(nn.Module):
                         drop_ratio=0., attn_drop_ratio=0., drop_path_ratio=0,
                         norm_layer=partial(nn.LayerNorm, eps=1e-6), act_layer=nn.GELU)
 
+        self.layerNorm = nn.LayerNorm(self.cat_embed_dim)
+
         # self.out_layer = nn.Sequential(
         #     nn.Linear(self.cat_embed_dim, output_dim),
         #     nn.BatchNorm1d(output_dim),
@@ -243,6 +216,8 @@ class Vit_block(nn.Module):
         gender_encode = gender_encode.clone()
         gender_encode = gender_encode.unsqueeze(1).expand(-1, x.shape[1], -1)
         patch_embed = torch.cat([x, gender_encode], dim=2)  # [B, num_patches+1, embed_dim+32]
+        patch_embed = self.layerNorm(patch_embed)
+
         x, attn = self.block(patch_embed)
 
         attn_size = int((attn.shape[-1]-1) ** 0.5)
