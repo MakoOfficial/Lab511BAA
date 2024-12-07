@@ -180,8 +180,8 @@ class Vit_block(nn.Module):
         super().__init__()
         self.embed_dim = embed_dim
         self.num_patches = int(img_size // patch_size) ** 2
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, self.embed_dim))
-        nn.init.trunc_normal_(self.cls_token, std=0.02)
+        self.cls_token = nn.Parameter(torch.rand(1, 1, self.embed_dim))
+        # nn.init.trunc_normal_(self.cls_token, std=0.02)
 
         self.cat_embed_dim = self.embed_dim + 32
 
