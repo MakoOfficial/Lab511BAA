@@ -62,21 +62,19 @@ class Attention(nn.Module):
     def forward(self, x):
         B, N, C = x.shape
 
-        qkv = self.qkv(x).reshape(B, N, 3, C).permute(2, 0, 1, 3)
+        qkv = self.qkv(x).reshape(B, N, 3, C).permute(2, 0, 1, 3) # [3, B, 1025, 800]
 
         q, k, v = qkv[0], qkv[1], qkv[2]
 
         attn = (q @ k.transpose(-2, -1)) * self.scale
+        attn_cls = attn[:, 0, 1:].softmax(dim=-1)
+        # attn = attn.softmax(dim=-1)
+        # attn = self.attn_drop(attn)
 
-        attn = attn.softmax(dim=-1)
-        attn = self.attn_drop(attn)
-
-        attn_map = attn
-
-        x = (attn @ v).transpose(1, 2).reshape(B, N, C)
-        x = self.proj(x)  #再经过投影
-        x = self.proj_drop(x)
-        return x, attn_map
+        # x = (attn @ v).transpose(1, 2).reshape(B, N, C)
+        # x = self.proj(x)  #再经过投影
+        # x = self.proj_drop(x)
+        return attn_cls
 
 
 class Mlp(nn.Module):
@@ -120,9 +118,6 @@ class Block(nn.Module):
                  ):
         super(Block, self).__init__()
 
-        # 结构图中第一个layer_norm
-        self.norm1 = norm_layer(dim)
-
         # 调用刚刚定义的attention创建一个Multi_head self_attention模块
         self.attn = Attention(dim, qkv_bias=qkv_bias, qk_scale=qk_scale,
                               attn_drop_ratio=attn_drop_ratio, proj_drop_ratio=drop_ratio)
@@ -131,20 +126,17 @@ class Block(nn.Module):
         # 使不用使用DropPath方法
         self.drop_path = DropPath(drop_path_ratio) if drop_path_ratio > 0. else nn.Identity()
 
-        # 结构图中第二个layer_norm
-        self.norm2 = norm_layer(dim)
-
         # MLP中第一个全连接层的输出神经元的倍数(4倍)
-        mlp_hidden_dim = int(dim * mlp_ratio)
-        self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop_ratio)
+        # mlp_hidden_dim = int(dim * mlp_ratio)
+        # self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop_ratio)
 
-    def forward(self, x):
+    def forward(self, x):   # B, 1025, 800
         # 前向传播，很清晰
-        x, attn_map = self.attn(self.norm1(x))
-        x = x + self.drop_path(x)
-        x = x + self.drop_path(self.mlp(self.norm2(x)))
+        attn_map = self.attn(x)
+        # x = x + self.drop_path(x)
+        # x = x + self.drop_path(self.mlp(x))
 
-        return x, attn_map
+        return attn_map
 
 
 class PatchEmbed(nn.Module):
@@ -152,7 +144,7 @@ class PatchEmbed(nn.Module):
     2D Image to Patch Embedding
     """
 
-    def __init__(self, img_size=256, patch_size=16, in_c=3, embed_dim=768):
+    def __init__(self, img_size=32, patch_size=1, in_c=1024, embed_dim=768):
         super().__init__()
         img_size = (img_size, img_size)
         patch_size = (patch_size, patch_size)
@@ -190,14 +182,13 @@ class Vit_block(nn.Module):
         self.num_patches = int(img_size // patch_size) ** 2
         self.cls_token = nn.Parameter(torch.zeros(1, 1, self.embed_dim))
         nn.init.trunc_normal_(self.cls_token, std=0.02)
+
         self.cat_embed_dim = self.embed_dim + 32
 
         self.patch_embed = PatchEmbed(img_size=img_size, patch_size=1, in_c=input_dim, embed_dim=self.embed_dim)
-        self.block = Block(dim=self.cat_embed_dim, mlp_ratio=4.0, qkv_bias=True, qk_scale=None,
+        self.block = Block(dim=800, mlp_ratio=4.0, qkv_bias=True, qk_scale=None,
                         drop_ratio=0., attn_drop_ratio=0., drop_path_ratio=0,
                         norm_layer=partial(nn.LayerNorm, eps=1e-6), act_layer=nn.GELU)
-
-        self.layerNorm = nn.LayerNorm(self.cat_embed_dim)
 
         # self.out_layer = nn.Sequential(
         #     nn.Linear(self.cat_embed_dim, output_dim),
@@ -209,20 +200,19 @@ class Vit_block(nn.Module):
         #     nn.Linear(512, 1)
         # )
 
-    def forward(self, x, gender_encode):
-        patch_embed = self.patch_embed(x)
-        cls_token = self.cls_token.expand(x.shape[0], -1, -1)
-        x = torch.cat((cls_token, patch_embed), dim=1)  # [B, num_patches+1, embed_dim]
+    def forward(self, x, gender_encode): #  X: B, 1024, 32, 32
+        patch_embed = self.patch_embed(x)   # patch_embed: B, 1024, 768
+        cls_token = self.cls_token.expand(x.shape[0], -1, -1)   # 1, 1, 768 -> B, 1, 768
+        x = torch.cat((cls_token, patch_embed), dim=1)  # [B, num_patches+1, embed_dim] B, 1025, 768
         gender_encode = gender_encode.clone()
-        gender_encode = gender_encode.unsqueeze(1).expand(-1, x.shape[1], -1)
-        patch_embed = torch.cat([x, gender_encode], dim=2)  # [B, num_patches+1, embed_dim+32]
-        patch_embed = self.layerNorm(patch_embed)
+        gender_encode = gender_encode.unsqueeze(1).expand(-1, x.shape[1], -1)   # [B, 1025, 32]
+        patch_embed = torch.cat([x, gender_encode], dim=2)  # [B, num_patches+1, embed_dim+32] [B, 1025, 800]
 
-        x, attn = self.block(patch_embed)
+        attn = self.block(patch_embed)
 
-        attn_size = int((attn.shape[-1]-1) ** 0.5)
+        attn_size = int(attn.shape[-1] ** 0.5)
 
-        return x[:, 0], attn[:, 0, 1:].reshape(x.shape[0], 1, attn_size, attn_size)
+        return attn.reshape(x.shape[0], 1, attn_size, attn_size)
 
 
 

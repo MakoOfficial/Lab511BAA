@@ -262,14 +262,9 @@ class Student_GCN_Model(nn.Module):
         self.freeze_params()
 
         self.backbone2 = backbone.backbone2
-        # self.adj_learning0 = Self_Attention_Adj(1024, 256, 1024)
-        # self.adj_learning0 = Attention(1024, 256, 1024)
         self.adj_learning0 = Vit_block(32, 1, 1024, 1024, 768)
         self.backbone3 = backbone.backbone3
-        # self.adj_learning1 = Self_Attention_Adj(2048, 512, 2048)
-        # self.adj_learning1 = Attention(2048, 512, 2048)
         self.adj_learning1 = Vit_block(16, 1, 2048, 2048, 768)
-        # self.gat = GAT()
 
         self.gender_encoder = backbone.gender_encoder
         self.gender_bn = backbone.gender_bn
@@ -287,14 +282,14 @@ class Student_GCN_Model(nn.Module):
         )
 
     def forward(self, image, gender):
-        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))
+        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender))) # B * 32
         x0, attn0 = self.attn0(self.backbone0(image))
         x1, attn1 = self.attn1(self.backbone1(x0))
         x2 = self.backbone2(x1)
-        cls_token2, attn2 = self.adj_learning0(x2, gender_encode)
-        x2 = x2 + (x2*attn2)
+        attn2 = self.adj_learning0(x2, gender_encode)
+        x2 = x2 + (x2 * attn2)
         x3 = self.backbone3(x2)
-        cls_token3, attn3 = self.adj_learning1(x3, gender_encode)
+        attn3 = self.adj_learning1(x3, gender_encode)
         x3 = x3 + (x3 * attn3)
         x = F.adaptive_avg_pool2d(x3, 1)
         x = torch.flatten(x, 1)
