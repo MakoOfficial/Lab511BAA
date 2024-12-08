@@ -65,7 +65,9 @@ class Contrast_Model(nn.Module):
 
 
 class Attn_Pool(nn.Module):
-    """输入为resnet的第3层和第4层输出，[B, 1024, 32, 32]，[B, 2048, 16, 16]"""
+    """输入为resnet的第3层和第4层输出，[B, 1024, 32, 32]，[B, 2048, 16, 16]
+        将cls_tokem的获取改为平均池化
+    """
     def __init__(self, in_channels, attn_dim, in_size) -> None:
         super().__init__()
         self.in_channels = in_channels
@@ -74,7 +76,7 @@ class Attn_Pool(nn.Module):
         self.in_size = in_size
 
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.max_pool = nn.AdaptiveMaxPool2d(1)
+        # self.max_pool = nn.AdaptiveMaxPool2d(1)
 
         self.fc1 = nn.Conv2d(in_channels, attn_dim, 1, bias=False)
         self.relu1 = nn.ReLU()
@@ -85,8 +87,9 @@ class Attn_Pool(nn.Module):
 
     def forward(self, x):
         avg_vector = self.relu1(self.fc1(self.avg_pool(x)))
-        max_vector = self.relu1(self.fc1(self.max_pool(x)))
-        cls_token = avg_vector + max_vector   # B C 1 1
+        # max_vector = self.relu1(self.fc1(self.max_pool(x)))
+        # cls_token = avg_vector + max_vector   # B C 1 1
+        cls_token = avg_vector  # B C 1 1
 
         feature_vector = self.relu1(self.fc1(x))    # 将原特征映射到度量空间
 
