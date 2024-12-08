@@ -235,7 +235,6 @@ class Graph_GCN(nn.Module):
         return (torch.matmul(x, self.weight)).transpose(1, 2)
 
 
-
 class GAT(nn.Module):
 
     def __init__(self) -> None:
@@ -251,105 +250,12 @@ class GAT(nn.Module):
         return output, A
 
 
-class Student_GCN_Model(nn.Module):
-    def __init__(self, backbone):
-        super(Student_GCN_Model, self).__init__()
-        # self.out_channels = out_channels
-        self.backbone0 = backbone.backbone0
-        self.attn0 = backbone.attn0
-        self.backbone1 = backbone.backbone1
-        self.attn1 = backbone.attn1
-        self.freeze_params()
-
-        self.backbone2 = backbone.backbone2
-        self.adj_learning0 = Vit_block(32, 1, 1024, 1024, 768)
-        self.backbone3 = backbone.backbone3
-        self.adj_learning1 = Vit_block(16, 1, 2048, 2048, 768)
-
-        self.gender_encoder = backbone.gender_encoder
-        self.gender_bn = backbone.gender_bn
-
-        self.fc = nn.Sequential(
-            nn.Linear(2048 + 32, 1024),
-            nn.BatchNorm1d(1024),
-            nn.ReLU(),
-            # nn.Dropout(0.2),
-            nn.Linear(1024, 512),
-            nn.BatchNorm1d(512),
-            nn.ReLU(),
-            # nn.Dropout(0.2),
-            nn.Linear(512, 1)
-        )
-
-        self.fc_cls2 = nn.Sequential(
-            nn.Linear(1024, 1024),
-            nn.BatchNorm1d(1024),
-            nn.ReLU(),
-            # nn.Dropout(0.2),
-            nn.Linear(1024, 512),
-            nn.BatchNorm1d(512),
-            nn.ReLU(),
-            # nn.Dropout(0.2),
-            nn.Linear(512, 1)
-        )
-
-        self.fc_cls3 = nn.Sequential(
-            nn.Linear(2048, 1024),
-            nn.BatchNorm1d(1024),
-            nn.ReLU(),
-            # nn.Dropout(0.2),
-            nn.Linear(1024, 512),
-            nn.BatchNorm1d(512),
-            nn.ReLU(),
-            # nn.Dropout(0.2),
-            nn.Linear(512, 1)
-        )
-
-    def forward(self, image, gender):
-        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender))) # B * 32
-        x0, attn0 = self.attn0(self.backbone0(image))
-        x1, attn1 = self.attn1(self.backbone1(x0))
-        x2 = self.backbone2(x1)
-        cls2, attn2 = self.adj_learning0(x2, gender_encode)
-        x2 = x2 + (x2 * attn2)
-        x3 = self.backbone3(x2)
-        cls3, attn3 = self.adj_learning1(x3, gender_encode)
-        x3 = x3 + (x3 * attn3)
-        x = F.adaptive_avg_pool2d(x3, 1)
-        x = torch.flatten(x, 1)
-
-        x = torch.cat([x, gender_encode], dim=1)
-
-        x = self.fc(x)
-        cls2 = self.fc_cls2(cls2)
-        cls3 = self.fc_cls3(cls3)
-
-        return x, attn0, attn1, attn2, attn3, cls2, cls3
-
-    def freeze_params(self):
-        for _, param in self.backbone0.named_parameters():
-            param.requires_grad = False
-        for _, param in self.attn0.named_parameters():
-            param.requires_grad = False
-        for _, param in self.backbone1.named_parameters():
-            param.requires_grad = False
-        for _, param in self.attn1.named_parameters():
-            param.requires_grad = False
-
-
 def get_student(pretrained=True):
     return Student_Model(32, *get_pretrained_resnet50(pretrained=pretrained))
 
 
 def get_student_res18(pretrained=True):
     return Student_Model_Res18(32, *get_pretrained_resnet18(pretrained=pretrained))
-
-
-def get_student_GCN(backbone_path):
-    backbone = Student_Model(32, *get_pretrained_resnet50())
-    if backbone_path is not None:
-        backbone.load_state_dict(torch.load(backbone_path))
-    return Student_GCN_Model(backbone)
 
 
 if __name__ == '__main__':

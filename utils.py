@@ -67,20 +67,6 @@ def L1_penalty(net, alpha):
     return alpha * loss
 
 
-def L1_penalty_cls(net, alpha):
-    l1_penalty = torch.nn.L1Loss(size_average=False)
-    loss = 0
-    for param in net.fc.parameters():
-        loss += torch.sum(torch.abs(param))
-    for param in net.fc_cls3.parameters():
-        loss += torch.sum(torch.abs(param))
-    for param in net.fc_cls2.parameters():
-        loss += torch.sum(torch.abs(param))
-
-
-    return alpha * loss
-
-
 def log_losses_to_csv(training_loss, mean_attention_loss, val_loss, val_attn, cost_time, lr, log_file_path):
     # 确保目标文件夹存在
     os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
