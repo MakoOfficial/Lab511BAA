@@ -281,15 +281,39 @@ class Student_GCN_Model(nn.Module):
             nn.Linear(512, 1)
         )
 
+        self.fc_cls2 = nn.Sequential(
+            nn.Linear(1024, 1024),
+            nn.BatchNorm1d(1024),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(1024, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(512, 1)
+        )
+
+        self.fc_cls3 = nn.Sequential(
+            nn.Linear(2048, 1024),
+            nn.BatchNorm1d(1024),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(1024, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(512, 1)
+        )
+
     def forward(self, image, gender):
         gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender))) # B * 32
         x0, attn0 = self.attn0(self.backbone0(image))
         x1, attn1 = self.attn1(self.backbone1(x0))
         x2 = self.backbone2(x1)
-        attn2 = self.adj_learning0(x2, gender_encode)
+        cls2, attn2 = self.adj_learning0(x2, gender_encode)
         x2 = x2 + (x2 * attn2)
         x3 = self.backbone3(x2)
-        attn3 = self.adj_learning1(x3, gender_encode)
+        cls3, attn3 = self.adj_learning1(x3, gender_encode)
         x3 = x3 + (x3 * attn3)
         x = F.adaptive_avg_pool2d(x3, 1)
         x = torch.flatten(x, 1)
@@ -297,8 +321,10 @@ class Student_GCN_Model(nn.Module):
         x = torch.cat([x, gender_encode], dim=1)
 
         x = self.fc(x)
+        cls2 = self.fc_cls2(cls2)
+        cls3 = self.fc_cls3(cls3)
 
-        return x, attn0, attn1, attn2, attn3
+        return x, attn0, attn1, attn2, attn3, cls2, cls3
 
     def freeze_params(self):
         for _, param in self.backbone0.named_parameters():

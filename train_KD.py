@@ -13,7 +13,7 @@ from torch.utils.data import Dataset
 
 from datasets import RSNATrainDataset, RSNAValidDataset
 from utils import L1_penalty, log_losses_to_csv, save_attn_KD, \
-    attn_offset_kl_loss_firstStage
+    attn_offset_kl_loss_firstStage, L1_penalty_cls
 
 from Student.student_model import get_student, get_student_res18, get_student_GCN
 from Unet.UNets import get_Attn_Unet
@@ -29,7 +29,7 @@ flags['data_dir'] = 'C:/BoneAgeAssessment/RSNA'
 flags['teacher_path'] = "./ckp/Unet/unet_segmentation_Attn_UNet.pth"
 flags['backbone_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = './KD_All_Output_A5000'
-flags['model_name'] = 'KD_Res50_CBAM_BSPC_CLS'
+flags['model_name'] = 'KD_Res50_CBAM_BSPC_only_CLS'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
@@ -77,21 +77,24 @@ def train_fn(train_loader, loss_fn, optimizer):
         # forward
         # firstly, get attention map from teacher model
         _, _, _, _, _, _, t1, t2, t3, t4 = teacher.forward_attention(image)
-        class_feature, s1, s2, s3, s4 = student_model(image, gender)
+        class_feature, s1, s2, s3, s4, cls2, cls3 = student_model(image, gender)
         y_pred = class_feature.squeeze()
+        cls2, cls3 = cls2.squeeze(), cls3.squeeze()
         label = label.squeeze()
 
         loss = loss_fn(y_pred, label)
+        loss_cls2 = loss_fn(cls2, label)
+        loss_cls3 = loss_fn(cls3, label)
 
         # backward,calculate gradients
-        penalty_loss = L1_penalty(student_model, 1e-5)
-        total_loss = loss + penalty_loss
+        penalty_loss = L1_penalty_cls(student_model, 1e-5)
+        total_loss = loss / 3 + penalty_loss + loss_cls2 / 6 + loss_cls3 / 6
         total_loss.backward()
 
         # backward,update parameter
         optimizer.step()
         batch_loss = loss.item()
-        # print(f"batch_loss: {batch_loss}, batch_attn_loss: {batch_attn_loss}, penalty_loss: {penalty_loss.item()}")
+        print(f"batch_loss: {batch_loss}, loss_cls2: {loss_cls2.item()}, loss_cls3: {loss_cls3.item()}, penalty_loss: {penalty_loss.item()}")
 
         training_loss += batch_loss
         total_size += batch_size
@@ -116,7 +119,7 @@ def evaluate_fn(val_loader):
             label = data[1].cuda()
 
             _, _, _, _, _, _, t1, t2, t3, t4 = teacher.forward_attention(image)
-            class_feature, s1, s2, s3, s4 = student_model(image, gender)
+            class_feature, s1, s2, s3, s4, _, _ = student_model(image, gender)
             y_pred = (class_feature * boneage_div) + boneage_mean  # 反归一化为原始标签
             y_pred = y_pred.squeeze()
             label = label.squeeze()
