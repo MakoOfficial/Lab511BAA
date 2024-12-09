@@ -3,8 +3,22 @@ import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
 from Student.student_model import get_student
-from vit_model_old import getViTBlock
+from torchvision.models import resnet50, resnet18
+from ContrastLearning.vit_model_old import getViTBlock
 from Unet.UNets import Attention_block
+
+def get_pretrained_resnet50(pretrained=True):
+    model = resnet50(pretrained=pretrained)
+    output_channels = model.fc.in_features
+    model = list(model.children())[:-2]
+    return model, output_channels
+
+
+def get_pretrained_resnet18(pretrained=True):
+    model = resnet18(pretrained=pretrained)
+    output_channels = model.fc.in_features
+    model = list(model.children())[:-2]
+    return model, output_channels
 
 
 class Contrast_Model(nn.Module):
@@ -64,7 +78,7 @@ class Contrast_Model(nn.Module):
         return x, cls_token0, token0_attn1, token0_attn2, cls_token1, token1_attn1, token1_attn2, attn0, attn1
 
 
-class Attn_Pool(nn.Module):
+class CNNAttention(nn.Module):
     """输入为resnet的第3层和第4层输出，[B, 1024, 32, 32]，[B, 2048, 16, 16]
         将cls_tokem的获取改为平均池化
     """
@@ -80,12 +94,16 @@ class Attn_Pool(nn.Module):
 
         self.fc1 = nn.Conv2d(in_channels, attn_dim, 1, bias=False)
         self.relu1 = nn.ReLU()
-        self.fc2 = nn.Conv2d(attn_dim, in_channels, 1, bias=False)
-        self.sigmoid = nn.Sigmoid()
         self.norm = nn.LayerNorm(attn_dim)
         self.softmax = nn.Softmax(dim=-1)
 
-    def forward(self, x):
+        self.to_out = nn.Sequential(
+            nn.Conv2d(in_channels, in_channels, kernel_size=1, padding=0, bias=False),
+            nn.BatchNorm2d(in_channels), # inner_dim
+            nn.ReLU(inplace=True),
+        )
+
+    def forward(self, x, mode="train"):
         avg_vector = self.relu1(self.fc1(self.avg_pool(x)))
         # max_vector = self.relu1(self.fc1(self.max_pool(x)))
         # cls_token = avg_vector + max_vector   # B C 1 1
@@ -100,14 +118,61 @@ class Attn_Pool(nn.Module):
         attn = self.softmax(attn * self.scale)  # b 1 n
         attn = rearrange(attn, 'b d (h w) -> b d h w', h=self.in_size, w=self.in_size)
 
+        feature_out = attn * x
+        feature_out = self.to_out(feature_out)
 
         # avg_out = self.fc2(self.relu1(self.fc1(self.avg_pool(x))))
         # max_out = self.fc2(self.relu1(self.fc1(self.max_pool(x))))
-        return attn * x, attn
+        if mode == "train":
+            return feature_out
+        else:
+            return feature_out, attn
+
+
+class CNNFeedForward(nn.Module):
+    def __init__(self, dim, hidden_dim):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Conv2d(dim, hidden_dim, kernel_size=1, padding=0, bias=False),
+            nn.BatchNorm2d(hidden_dim),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(hidden_dim, dim, kernel_size=1, padding=0, bias=False),
+            nn.BatchNorm2d(dim),
+            nn.ReLU(inplace=True)
+        )
+    def forward(self, x):
+        return self.net(x)
+
+
+class CNNViT(nn.Module):
+
+    def __init__(self, in_channels, attn_dim, in_size, mlp_dim, depth) -> None:
+        super().__init__()
+
+        for _ in range(depth):
+            self.layers.append(nn.ModuleList([
+                CNNAttention(in_channels, attn_dim, in_size),
+                CNNFeedForward(in_channels, mlp_dim)
+            ]))
+
+    def forward(self, x):
+        for attn, ff in self.layers:
+            x = attn(x) + x
+            x = ff(x) + x
+        return x
+
+    def infer(self, x):
+        for attn, ff in self.layers:
+            ax, amap = attn(x, mode="record")
+            x = ax + x
+            x = ff(x) + x
+        return x, amap
+
 
 
 class Student_GCN_Model(nn.Module):
-    def __init__(self, backbone):
+    """仅限resnet的stage1和stage2、CBAM1、CBAM2的模块传入预训练参数并固定"""
+    def __init__(self, backbone, backbone_res):
         super(Student_GCN_Model, self).__init__()
         # self.out_channels = out_channels
         self.backbone0 = backbone.backbone0
@@ -116,23 +181,21 @@ class Student_GCN_Model(nn.Module):
         self.attn1 = backbone.attn1
         self.freeze_params()
 
-        self.backbone2 = backbone.backbone2
-        self.adj_learning0 = Attn_Pool(1024, 768, 32)
-        self.backbone3 = backbone.backbone3
-        self.adj_learning1 = Attn_Pool(2048, 768, 16)
+        self.backbone2 = backbone_res[6]
+        self.adj_learning0 = CNNAttention(1024, 768, 32)
+        self.backbone3 = backbone_res[7]
+        self.adj_learning1 = CNNAttention(2048, 768, 16)
 
-        self.gender_encoder = backbone.gender_encoder
-        self.gender_bn = backbone.gender_bn
+        self.gender_encoder = nn.Linear(1, 32)
+        self.gender_bn = nn.BatchNorm1d(32)
 
         self.fc = nn.Sequential(
             nn.Linear(2048 + 32, 1024),
             nn.BatchNorm1d(1024),
             nn.ReLU(),
-            # nn.Dropout(0.2),
             nn.Linear(1024, 512),
             nn.BatchNorm1d(512),
             nn.ReLU(),
-            # nn.Dropout(0.2),
             nn.Linear(512, 1)
         )
 
@@ -174,7 +237,10 @@ def get_student_GCN(backbone_path):
     backbone = get_student()
     if backbone_path is not None:
         backbone.load_state_dict(torch.load(backbone_path))
-    return Student_GCN_Model(backbone)
+
+    resnet, output_channels = get_pretrained_resnet50(True)
+
+    return Student_GCN_Model(backbone, resnet)
 
 
 if __name__ == '__main__':
