@@ -26,11 +26,11 @@ flags['lr'] = 5e-4
 flags['batch_size'] = 32
 flags['num_workers'] = 8
 flags['num_epochs'] = 100
-flags['data_dir'] = 'C:/BoneAgeAssessment/RSNA'
-flags['teacher_path'] = "./ckp/Unet/unet_segmentation_Attn_UNet.pth"
+flags['data_dir'] = '../archive'
+flags['teacher_path'] = "../unet_segmentation_Attn_UNet_RSNA_256.pth"
 flags['backbone_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['save_path'] = './KD_All_Output_A5000'
-flags['model_name'] = 'KD_Res50_CBAM_BSPC_only_CLS_AVGPool'
+flags['save_path'] = './KD_All_Output_3090'
+flags['model_name'] = 'KD_Res50_CBAM_BSPC_only_CLS_AVGPool_FFN_pretrained'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
@@ -78,7 +78,7 @@ def train_fn(train_loader, loss_fn, optimizer):
         # forward
         # firstly, get attention map from teacher model
         _, _, _, _, _, _, t1, t2, t3, t4 = teacher.forward_attention(image)
-        class_feature, s1, s2, s3, s4 = student_model(image, gender)
+        class_feature, s1, s2 = student_model(image, gender)
         y_pred = class_feature.squeeze()
         label = label.squeeze()
 
@@ -117,7 +117,7 @@ def evaluate_fn(val_loader):
             label = data[1].cuda()
 
             _, _, _, _, _, _, t1, t2, t3, t4 = teacher.forward_attention(image)
-            class_feature, s1, s2, s3, s4 = student_model(image, gender)
+            class_feature, s1, s2, s3, s4 = student_model.infer(image, gender)
             y_pred = (class_feature * boneage_div) + boneage_mean  # 反归一化为原始标签
             y_pred = y_pred.squeeze()
             label = label.squeeze()

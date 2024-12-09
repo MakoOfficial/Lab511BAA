@@ -203,8 +203,23 @@ class Student_GCN_Model(nn.Module):
         gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender))) # B * 32
         x0, attn0 = self.attn0(self.backbone0(image))
         x1, attn1 = self.attn1(self.backbone1(x0))
-        x2, attn2 = self.adj_learning0(self.backbone2(x1))
-        x3, attn3 = self.adj_learning1(self.backbone3(x2))
+        x2 = self.adj_learning0(self.backbone2(x1))
+        x3 = self.adj_learning1(self.backbone3(x2))
+        x = F.adaptive_avg_pool2d(x3, 1)
+        x = torch.flatten(x, 1)
+
+        x = torch.cat([x, gender_encode], dim=1)
+
+        x = self.fc(x)
+
+        return x, attn0, attn1
+
+    def infer(self, image, gender):
+        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender))) # B * 32
+        x0, attn0 = self.attn0(self.backbone0(image))
+        x1, attn1 = self.attn1(self.backbone1(x0))
+        x2, attn2 = self.adj_learning0(self.backbone2(x1), mode="record")
+        x3, attn3 = self.adj_learning1(self.backbone3(x2), mode="record")
         x = F.adaptive_avg_pool2d(x3, 1)
         x = torch.flatten(x, 1)
 
