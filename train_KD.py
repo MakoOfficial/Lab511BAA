@@ -13,7 +13,7 @@ from torch.utils.data import Dataset
 
 from datasets import RSNATrainDataset, RSNAValidDataset
 from utils import L1_penalty, log_losses_to_csv, save_attn_KD, \
-    attn_offset_kl_loss_firstStage
+    attn_offset_kl_loss_firstStage, save_attn_Contrast
 
 from Student.student_model import get_student, get_student_res18
 from ContrastLearning.contrast_model import get_student_GCN
@@ -30,7 +30,7 @@ flags['data_dir'] = '../archive'
 flags['teacher_path'] = "../unet_segmentation_Attn_UNet_RSNA_256.pth"
 flags['backbone_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = './KD_All_Output_3090'
-flags['model_name'] = 'KD_Res50_CBAM_BSPC_only_CLS_AVGPool_FFN_Stack_pretrained'
+flags['model_name'] = 'KD_Res50_CBAM_BSPC_only_CLS_AVGPool_FFN_StackViT_pretrained'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
@@ -126,7 +126,8 @@ def evaluate_fn(val_loader):
             mae_loss += batch_loss
 
             if batch_idx == len(val_loader) - 1:
-                save_attn_KD(t1[0], t2[0], t3[0], t4[0], s1[0], s2[0], s3[0], s4[0], save_path)
+                # save_attn_KD(t1[0], t2[0], t3[0], t4[0], s1[0], s2[0], s3[0], s4[0], save_path)
+                save_attn_Contrast(s3, s4, save_path)
 
     return mae_loss, attn_loss, val_total_size
 

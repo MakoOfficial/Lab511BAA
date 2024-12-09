@@ -173,6 +173,33 @@ def save_attn_KD(t1, t2, t3, t4, s1, s2, s3, s4, save_path):
     plt.savefig(os.path.join(save_path, "attn_ts.png"))
 
 
+def save_attn_Contrast(s3, s4, save_path):
+    s31 = s3[0][0]
+    s32 = s3[1][0]
+    s41 = s4[0][0]
+    s42 = s4[1][0]
+    fig, axes = plt.subplots(2, 2, figsize=(15, 5))
+
+    axes[0][0].imshow(s31.squeeze().cpu().numpy(), cmap='viridis')
+    axes[0][0].set_title('s31')
+    axes[0][0].axis('off')
+
+    axes[0][1].imshow(s32.squeeze().cpu().numpy(), cmap='viridis')
+    axes[0][1].set_title('s32')
+    axes[0][1].axis('off')
+
+    axes[1][0].imshow(s41.squeeze().cpu().numpy(), cmap='viridis')
+    axes[1][0].set_title('s41')
+    axes[1][0].axis('off')
+
+    axes[1][1].imshow(s42.squeeze().cpu().numpy(), cmap='viridis')
+    axes[1][1].set_title('s42')
+    axes[1][1].axis('off')
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(save_path, "attn_Contrast.png"))
+
+
 def KL_loss(p, q):
     p_soft = F.softmax(torch.flatten(p, 1), dim=1) + 1e-3
     q_soft = F.softmax(torch.flatten(q, 1), dim=1) + 1e-3

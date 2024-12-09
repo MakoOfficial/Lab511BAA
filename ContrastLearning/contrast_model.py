@@ -97,12 +97,6 @@ class CNNAttention(nn.Module):
         self.norm = nn.LayerNorm(attn_dim)
         self.softmax = nn.Softmax(dim=-1)
 
-        self.to_out = nn.Sequential(
-            nn.Conv2d(in_channels, in_channels, kernel_size=1, padding=0, bias=False),
-            # nn.BatchNorm2d(in_channels), # inner_dim
-            nn.ReLU(inplace=True),
-        )
-
     def forward(self, x, mode="train"):
         avg_vector = self.relu1(self.fc1(self.avg_pool(x)))
         # max_vector = self.relu1(self.fc1(self.max_pool(x)))
@@ -119,7 +113,7 @@ class CNNAttention(nn.Module):
         attn = rearrange(attn, 'b d (h w) -> b d h w', h=self.in_size, w=self.in_size)
 
         feature_out = attn * x
-        feature_out = self.to_out(feature_out)
+        # feature_out = self.to_out(feature_out)
 
         # avg_out = self.fc2(self.relu1(self.fc1(self.avg_pool(x))))
         # max_out = self.fc2(self.relu1(self.fc1(self.max_pool(x))))
@@ -149,7 +143,7 @@ class CNNViT(nn.Module):
 
     def __init__(self, in_channels, attn_dim, in_size, mlp_dim, depth) -> None:
         super().__init__()
-
+        self.layers = nn.ModuleList([])
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
                 CNNAttention(in_channels, attn_dim, in_size),
@@ -163,11 +157,13 @@ class CNNViT(nn.Module):
                 x = ff(x) + x
             return x
         else:
+            attmaps = []
             for attn, ff in self.layers:
                 ax, amap = attn(x, mode="record")
                 x = ax + x
                 x = ff(x) + x
-            return x, amap
+                attmaps.append(amap)
+            return x, attmaps
 
 
 class Student_GCN_Model(nn.Module):
@@ -182,11 +178,11 @@ class Student_GCN_Model(nn.Module):
         self.freeze_params()
 
         self.backbone2 = backbone_res[6]
-        self.adj_learning0 = CNNAttention(1024, 768, 32)
-        # self.adj_learning0 = CNNViT(1024, 768, 32, 2048, 2)
+        # self.adj_learning0 = CNNAttention(1024, 768, 32)
+        self.adj_learning0 = CNNViT(1024, 768, 32, 2048, depth=2)
         self.backbone3 = backbone_res[7]
-        self.adj_learning1 = CNNAttention(2048, 768, 16)
-        # self.adj_learning1 = CNNViT(2048, 768, 16, 2048, 2)
+        # self.adj_learning1 = CNNAttention(2048, 768, 16)
+        self.adj_learning1 = CNNViT(2048, 768, 16, 2048, depth=2)
 
         self.gender_encoder = nn.Linear(1, 32)
         self.gender_bn = nn.BatchNorm1d(32)
@@ -259,22 +255,48 @@ def get_student_GCN(backbone_path):
 
     return Student_GCN_Model(backbone, resnet)
 
+import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
     contrast_model = getContrastModel(
         "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin").cuda()
     print(f"Contrast Model: {sum(p.nelement() for p in contrast_model.parameters() if p.requires_grad == True) / 1e6}M")
-    print(contrast_model)
+    # print(contrast_model)
 
     student_GCN = get_student_GCN("../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin").cuda()
     print(f"student_GCN Model: {sum(p.nelement() for p in student_GCN.parameters() if p.requires_grad == True) / 1e6}M")
+    print(student_GCN)
 
     data = torch.rand(2, 1, 256, 256).cuda()
     gender = torch.ones((2, 1)).cuda()
 
     # output, cls_token0, token0_attn1, token0_attn2, cls_token1, token1_attn1, token1_attn2, attn0, attn1 = contrast_model(data, gender)
     # print(f"x: {output.shape}\ncls_token0: {cls_token0.shape}\ncls_token1: {cls_token1.shape}")
+    with torch.no_grad():
+        output, attn0, attn1, attn2, attn3 = student_GCN.infer(data, gender)
+        print(f"x: {output.shape}\nattn0: {attn0.shape}\nattn1: {attn1.shape}\n")
+        s31 = attn2[0][0]
+        s32 = attn2[1][0]
+        s41 = attn3[0][0]
+        s42 = attn3[1][0]
+        fig, axes = plt.subplots(2, 2, figsize=(15, 5))
 
-    output, attn0, attn1, attn2, attn3 = student_GCN(data, gender)
-    print(f"x: {output.shape}\nattn0: {attn0.shape}\nattn1: {attn1.shape}\nattn2: {attn2.shape}\nattn3: {attn3.shape}\n")
+        axes[0][0].imshow(s31.squeeze().cpu().numpy(), cmap='viridis')
+        axes[0][0].set_title('s31')
+        axes[0][0].axis('off')
+
+        axes[0][1].imshow(s32.squeeze().cpu().numpy(), cmap='viridis')
+        axes[0][1].set_title('s32')
+        axes[0][1].axis('off')
+
+        axes[1][0].imshow(s41.squeeze().cpu().numpy(), cmap='viridis')
+        axes[1][0].set_title('s41')
+        axes[1][0].axis('off')
+
+        axes[1][1].imshow(s42.squeeze().cpu().numpy(), cmap='viridis')
+        axes[1][1].set_title('s42')
+        axes[1][1].axis('off')
+
+        plt.tight_layout()
+        plt.show()
 
