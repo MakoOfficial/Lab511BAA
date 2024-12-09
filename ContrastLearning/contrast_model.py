@@ -160,14 +160,14 @@ class CNNViT(nn.Module):
     def forward(self, x, mode="train"):
         if mode == "train":
             for attn, ff in self.layers:
-                x = attn(x) + x
+                x = attn(x)
                 # x = ff(x) + x
             return x
         else:
             attmaps = []
             for attn, ff in self.layers:
                 ax, amap = attn(x, mode="record")
-                x = ax + x
+                x = ax
                 # x = ff(x) + x
                 attmaps.append(amap)
             return x, attmaps
