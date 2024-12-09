@@ -140,6 +140,7 @@ class CNNFeedForward(nn.Module):
             nn.BatchNorm2d(dim),
             nn.ReLU(inplace=True)
         )
+
     def forward(self, x):
         return self.net(x)
 
@@ -155,19 +156,18 @@ class CNNViT(nn.Module):
                 CNNFeedForward(in_channels, mlp_dim)
             ]))
 
-    def forward(self, x):
-        for attn, ff in self.layers:
-            x = attn(x) + x
-            x = ff(x) + x
-        return x
-
-    def infer(self, x):
-        for attn, ff in self.layers:
-            ax, amap = attn(x, mode="record")
-            x = ax + x
-            x = ff(x) + x
-        return x, amap
-
+    def forward(self, x, mode="train"):
+        if mode == "train":
+            for attn, ff in self.layers:
+                x = attn(x) + x
+                x = ff(x) + x
+            return x
+        else:
+            for attn, ff in self.layers:
+                ax, amap = attn(x, mode="record")
+                x = ax + x
+                x = ff(x) + x
+            return x, amap
 
 
 class Student_GCN_Model(nn.Module):
@@ -182,9 +182,11 @@ class Student_GCN_Model(nn.Module):
         self.freeze_params()
 
         self.backbone2 = backbone_res[6]
-        self.adj_learning0 = CNNAttention(1024, 768, 32)
+        # self.adj_learning0 = CNNAttention(1024, 768, 32)
+        self.adj_learning0 = CNNViT(1024, 768, 32, 2048, 2)
         self.backbone3 = backbone_res[7]
-        self.adj_learning1 = CNNAttention(2048, 768, 16)
+        # self.adj_learning1 = CNNAttention(2048, 768, 16)
+        self.adj_learning1 = CNNViT(2048, 768, 16, 2048, 2)
 
         self.gender_encoder = nn.Linear(1, 32)
         self.gender_bn = nn.BatchNorm1d(32)
