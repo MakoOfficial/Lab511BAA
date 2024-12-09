@@ -13,7 +13,7 @@ from torch.utils.data import Dataset
 
 from datasets import RSNATrainDataset, RSNAValidDataset
 from utils import L1_penalty, log_losses_to_csv, save_attn_KD, \
-    attn_offset_kl_loss_firstStage, save_attn_Contrast
+    attn_offset_kl_loss_firstStage, save_attn_Contrast, save_attn_6Stage
 
 from Student.student_model import get_student, get_student_res18
 from ContrastLearning.contrast_model import get_student_GCN
@@ -125,9 +125,9 @@ def evaluate_fn(val_loader):
 
             mae_loss += batch_loss
 
-            if batch_idx == len(val_loader) - 1:
+            # if batch_idx == len(val_loader) - 1:
                 # save_attn_KD(t1[0], t2[0], t3[0], t4[0], s1[0], s2[0], s3[0], s4[0], save_path)
-                save_attn_Contrast(s3, s4, save_path)
+                # save_attn_Contrast(s3, s4, save_path)
 
     return mae_loss, attn_loss, val_total_size
 
@@ -151,6 +151,8 @@ def training_start(flags):
         ## Evaluation
         # Sets net to eval and no grad context
         valid_mae_loss, valid_attn_loss, val_total_size = evaluate_fn(valid_loader)
+
+        save_attn_6Stage(test_loader=test_loader, model=student_model, save_path=save_path)
 
         training_mean_loss, training_mean_attn_loss = training_loss / total_size, training_attn_loss / total_size
         valid_mean_mae, valid_mean_attn_loss = valid_mae_loss / val_total_size, valid_attn_loss / val_total_size
@@ -200,6 +202,9 @@ if __name__ == "__main__":
     valid_csv = os.path.join(data_dir, "valid_new.csv")
     valid_df = pd.read_csv(valid_csv)
 
+    test_csv = os.path.join(data_dir, "valid_test.csv")
+    test_df = pd.read_csv(test_csv)
+
     boneage_mean = train_df['boneage'].mean()
     boneage_div = train_df['boneage'].std()
     print(f"boneage_mean is {boneage_mean}")
@@ -208,6 +213,8 @@ if __name__ == "__main__":
 
     train_set = RSNATrainDataset(train_df, train_path, boneage_mean, boneage_div)
     valid_set = RSNAValidDataset(valid_df, valid_path, boneage_mean, boneage_div)
+    test_set = RSNAValidDataset(test_df, valid_path, boneage_mean, boneage_div)
+
     print(train_set.__len__())
 
     train_loader = torch.utils.data.DataLoader(
@@ -224,6 +231,13 @@ if __name__ == "__main__":
         batch_size=flags['batch_size'],
         shuffle=False,
         num_workers=flags['num_workers'],
+        pin_memory=True
+    )
+
+    test_loader = torch.utils.data.DataLoader(
+        valid_set,
+        batch_size=12,
+        shuffle=False,
         pin_memory=True
     )
 

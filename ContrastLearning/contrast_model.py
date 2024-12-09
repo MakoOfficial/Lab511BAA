@@ -97,6 +97,12 @@ class CNNAttention(nn.Module):
         self.norm = nn.LayerNorm(attn_dim)
         self.softmax = nn.Softmax(dim=-1)
 
+        # self.to_out = nn.Sequential(
+        #     nn.Conv2d(in_channels, in_channels, kernel_size=1, padding=0, bias=False),
+        #     # nn.BatchNorm2d(in_channels), # inner_dim
+        #     nn.ReLU(inplace=True),
+        # )
+
     def forward(self, x, mode="train"):
         avg_vector = self.relu1(self.fc1(self.avg_pool(x)))
         # max_vector = self.relu1(self.fc1(self.max_pool(x)))
@@ -148,6 +154,7 @@ class CNNViT(nn.Module):
             self.layers.append(nn.ModuleList([
                 CNNAttention(in_channels, attn_dim, in_size),
                 # CNNFeedForward(in_channels, mlp_dim)
+                nn.ReLU()
             ]))
 
     def forward(self, x, mode="train"):
