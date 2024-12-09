@@ -147,21 +147,21 @@ class CNNViT(nn.Module):
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
                 CNNAttention(in_channels, attn_dim, in_size),
-                CNNFeedForward(in_channels, mlp_dim)
+                # CNNFeedForward(in_channels, mlp_dim)
             ]))
 
     def forward(self, x, mode="train"):
         if mode == "train":
             for attn, ff in self.layers:
                 x = attn(x) + x
-                x = ff(x) + x
+                # x = ff(x) + x
             return x
         else:
             attmaps = []
             for attn, ff in self.layers:
                 ax, amap = attn(x, mode="record")
                 x = ax + x
-                x = ff(x) + x
+                # x = ff(x) + x
                 attmaps.append(amap)
             return x, attmaps
 
