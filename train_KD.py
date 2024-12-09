@@ -28,9 +28,9 @@ flags['num_workers'] = 8
 flags['num_epochs'] = 100
 flags['data_dir'] = '../archive'
 flags['teacher_path'] = "../unet_segmentation_Attn_UNet_RSNA_256.pth"
-flags['backbone_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
+flags['backbone_path'] = "./KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = './KD_All_Output_3090'
-flags['model_name'] = 'KD_Res50_CBAM_BSPC_only_CLS_AVGPool_DelFFN_StackViT_pretrained'
+flags['model_name'] = 'KD_Res50_CBAM_BSPC_only_CLS_AVGPool_DelFFN_DelRes_StackViT_pretrained'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
@@ -125,9 +125,9 @@ def evaluate_fn(val_loader):
 
             mae_loss += batch_loss
 
-            # if batch_idx == len(val_loader) - 1:
+            if batch_idx == len(val_loader) - 1:
                 # save_attn_KD(t1[0], t2[0], t3[0], t4[0], s1[0], s2[0], s3[0], s4[0], save_path)
-                # save_attn_Contrast(s3, s4, save_path)
+                save_attn_Contrast(t1[0], t2[0], t3[0], t4[0], s1[0], s2[0], s3, s4, save_path)
 
     return mae_loss, attn_loss, val_total_size
 
@@ -235,7 +235,7 @@ if __name__ == "__main__":
     )
 
     test_loader = torch.utils.data.DataLoader(
-        valid_set,
+        test_set,
         batch_size=12,
         shuffle=False,
         pin_memory=True

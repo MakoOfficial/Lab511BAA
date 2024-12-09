@@ -173,28 +173,62 @@ def save_attn_KD(t1, t2, t3, t4, s1, s2, s3, s4, save_path):
     plt.savefig(os.path.join(save_path, "attn_ts.png"))
 
 
-def save_attn_Contrast(s3, s4, save_path):
+def save_attn_Contrast(t1, t2, t3, t4, s1, s2, s3, s4, save_path):
     s31 = s3[0][0]
     s32 = s3[1][0]
     s41 = s4[0][0]
     s42 = s4[1][0]
-    fig, axes = plt.subplots(2, 2, figsize=(15, 5))
+    fig, axes = plt.subplots(2, 6, figsize=(15, 5))
 
-    axes[0][0].imshow(s31.squeeze().cpu().numpy(), cmap='viridis')
-    axes[0][0].set_title('s31')
+    axes[0][0].imshow(t1.squeeze().cpu().numpy(), cmap='viridis')
+    axes[0][0].set_title('t1')
     axes[0][0].axis('off')
 
-    axes[0][1].imshow(s32.squeeze().cpu().numpy(), cmap='viridis')
-    axes[0][1].set_title('s32')
+    axes[0][1].imshow(t2.squeeze().cpu().numpy(), cmap='viridis')
+    axes[0][1].set_title('t2')
     axes[0][1].axis('off')
 
-    axes[1][0].imshow(s41.squeeze().cpu().numpy(), cmap='viridis')
-    axes[1][0].set_title('s41')
+    axes[0][2].imshow(t3.squeeze().cpu().numpy(), cmap='viridis')
+    axes[0][2].set_title('t3')
+    axes[0][2].axis('off')
+
+    axes[0][3].imshow(t4.squeeze().cpu().numpy(), cmap='viridis')
+    axes[0][3].set_title('t4')
+    axes[0][3].axis('off')
+
+    axes[1][0].imshow(s1.squeeze().cpu().numpy(), cmap='viridis')
+    axes[1][0].set_title('s1')
     axes[1][0].axis('off')
 
-    axes[1][1].imshow(s42.squeeze().cpu().numpy(), cmap='viridis')
-    axes[1][1].set_title('s42')
+    axes[1][1].imshow(s2.squeeze().cpu().numpy(), cmap='viridis')
+    axes[1][1].set_title('s2')
     axes[1][1].axis('off')
+
+    axes[1][2].imshow(s3.squeeze().cpu().numpy(), cmap='viridis')
+    axes[1][2].set_title('s3')
+    axes[1][2].axis('off')
+
+    axes[1][3].imshow(s4.squeeze().cpu().numpy(), cmap='viridis')
+    axes[1][3].set_title('s4')
+    axes[1][3].axis('off')
+
+    axes[0][4].imshow(s31.squeeze().cpu().numpy(), cmap='viridis')
+    axes[0][4].set_title('s31')
+    axes[0][4].axis('off')
+
+    axes[0][5].imshow(s32.squeeze().cpu().numpy(), cmap='viridis')
+    axes[0][5].set_title('s32')
+    axes[0][5].axis('off')
+
+    axes[1][4].imshow(s41.squeeze().cpu().numpy(), cmap='viridis')
+    axes[1][4].set_title('s41')
+    axes[1][4].axis('off')
+
+    axes[1][6].imshow(s42.squeeze().cpu().numpy(), cmap='viridis')
+    axes[1][6].set_title('s42')
+    axes[1][6].axis('off')
+
+
 
     plt.tight_layout()
     plt.savefig(os.path.join(save_path, "attn_Contrast.png"))
