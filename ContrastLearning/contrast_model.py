@@ -140,22 +140,13 @@ class CNNViT(nn.Module):
 
     def __init__(self, in_channels, attn_dim, in_size, mlp_dim, depth) -> None:
         super().__init__()
-        self.layers = nn.ModuleList([])
-        for _ in range(depth):
-            self.layers.append(nn.ModuleList([
-                CNNAttention(in_channels, attn_dim, in_size),
-                # CNNFeedForward(in_channels, mlp_dim)
-                nn.ReLU()
-            ]))
+        self.attn1 = CNNAttention(in_channels, attn_dim, in_size)
+        self.attn2 = CNNAttention(in_channels, attn_dim, in_size)
 
     def forward(self, x):
-        attmaps = []
-        for attn, ff in self.layers:
-            ax, amap = attn(x)
-            # x = ax + x
-            # x = ff(x) + x
-            attmaps.append(amap)
-        return x, attmaps
+        x, attn1 = self.attn1(x)
+        x, attn2 = self.attn2(x)
+        return x, attn1, attn2
 
 
 class Student_GCN_Model(nn.Module):
@@ -174,6 +165,18 @@ class Student_GCN_Model(nn.Module):
         self.backbone3 = backbone_res[7]
         # self.adj_learning1 = CNNAttention(2048, 768, 16)
         self.adj_learning1 = CNNViT(2048, 768, 16, 1024, 2)
+
+        self.to_out = nn.Sequential(
+            nn.Conv2d(2048, 512, kernel_size=(1, 1), stride=(1, 1), bias=False),
+            nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False),
+            nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(512, 2048, kernel_size=(1, 1), stride=(1, 1), bias=False),
+            nn.BatchNorm2d(2048, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+        )
+        self.to_out_relu = nn.ReLU(inplace=True)
 
         self.gender_encoder = nn.Linear(1, 32)
         self.gender_bn = nn.BatchNorm1d(32)
@@ -194,8 +197,10 @@ class Student_GCN_Model(nn.Module):
         gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender))) # B * 32
         x0, attn0 = self.attn0(self.backbone0(image))
         x1, attn1 = self.attn1(self.backbone1(x0))
-        x2, attn2 = self.adj_learning0(self.backbone2(x1))
-        x3, attn3 = self.adj_learning1(self.backbone3(x2))
+        x2, attn21, attn22 = self.adj_learning0(self.backbone2(x1))
+        x3, attn31, attn32 = self.adj_learning1(self.backbone3(x2))
+        x3_out = self.to_out(x3)
+        x3 = self.to_out_relu(x3 + x3_out)
         x = F.adaptive_avg_pool2d(x3, 1)
         x = torch.flatten(x, 1)
 
@@ -203,7 +208,7 @@ class Student_GCN_Model(nn.Module):
 
         x = self.fc(x)
 
-        return x, attn0, attn1, attn2, attn3
+        return x, attn0, attn1, [attn21, attn22], [attn31, attn32]
 
     def freeze_params(self):
         for _, param in self.backbone0.named_parameters():
@@ -232,8 +237,6 @@ def get_student_GCN(backbone_path):
     resnet, output_channels = get_pretrained_resnet50(True)
 
     return Student_GCN_Model(backbone, resnet)
-
-import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
     contrast_model = getContrastModel(
