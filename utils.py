@@ -67,6 +67,22 @@ def L1_penalty(net, alpha):
     return alpha * loss
 
 
+def L1_penalty_multi(net, alpha):
+    l1_penalty = torch.nn.L1Loss(size_average=False)
+    loss = 0
+    loss2 = 0
+    loss3 = 0
+    for param in net.fc.parameters():
+        loss += torch.sum(torch.abs(param))
+    for param in net.fc_cls2.parameters():
+        loss2 += torch.sum(torch.abs(param))
+    for param in net.fc_cls3.parameters():
+        loss3 += torch.sum(torch.abs(param))
+
+    return alpha * (loss + 1/2 * loss2 + 1/2 * loss3)
+
+
+
 def log_losses_to_csv(training_loss, mean_attention_loss, val_loss, val_attn, cost_time, lr, log_file_path):
     # 确保目标文件夹存在
     os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
@@ -236,28 +252,27 @@ def save_attn_6Stage(test_loader, model, save_path):
             image = image.type(torch.FloatTensor).cuda()
             gender = gender.type(torch.FloatTensor).cuda()
 
-            class_feature, s1, s2, s3, s4 = model.infer(image, gender)
+            class_feature, _, _, s1, s2, s3, s4 = model.infer(image, gender)
             img_num = len(image)
-            num_cols = len(s3)
+            num_cols = 2
             # num_cols = 1
             for i in range(img_num):
                 """对于第i张图片"""
-                fig, axes = plt.subplots(2, num_cols, figsize=(15, 5))
+                fig, axes = plt.subplots(1, 2, figsize=(15, 5))
                 save_name = f"attn_{i}_Contrast.png"
-                for j in range(num_cols):
-                    """第j张注意力图"""
-                    attn_map_s3 = s3[j][i]
-                    title_s3 = f"attn_{i}_s3_{j}"
-                    attn_map_s4 = s4[j][i]
-                    title_s4 = f"attn_{i}_s4_{j}"
+                """第j张注意力图"""
+                attn_map_s3 = s3[i]
+                title_s3 = f"attn_{i}_s3"
+                attn_map_s4 = s4[i]
+                title_s4 = f"attn_{i}_s4"
 
-                    axes[0][j].imshow(attn_map_s3.squeeze().cpu().numpy(), cmap='viridis')
-                    axes[0][j].set_title(title_s3)
-                    axes[0][j].axis('off')
+                axes[0].imshow(attn_map_s3.squeeze().cpu().numpy(), cmap='viridis')
+                axes[0].set_title(title_s3)
+                axes[0].axis('off')
 
-                    axes[1][j].imshow(attn_map_s4.squeeze().cpu().numpy(), cmap='viridis')
-                    axes[1][j].set_title(title_s4)
-                    axes[1][j].axis('off')
+                axes[1].imshow(attn_map_s4.squeeze().cpu().numpy(), cmap='viridis')
+                axes[1].set_title(title_s4)
+                axes[1].axis('off')
 
                 plt.tight_layout()
                 plt.savefig(os.path.join(save_path, save_name))

@@ -114,10 +114,10 @@ class CNNAttention(nn.Module):
         attn = self.softmax(attn * self.scale)  # b 1 n
         attn = rearrange(attn, 'b d (h w) -> b d h w', h=self.in_size, w=self.in_size)
 
+        avg_out = self.fc2(avg_vector)
 
-        # avg_out = self.fc2(self.relu1(self.fc1(self.avg_pool(x))))
         # max_out = self.fc2(self.relu1(self.fc1(self.max_pool(x))))
-        return attn * x, attn
+        return attn * x, torch.flatten(avg_out, 1), attn
 
 
 class CNNFeedForward(nn.Module):
@@ -160,23 +160,11 @@ class Student_GCN_Model(nn.Module):
         self.freeze_params()
 
         self.backbone2 = backbone_res[6]
-        # self.adj_learning0 = CNNAttention(1024, 768, 32)
-        self.adj_learning0 = CNNViT(1024, 768, 32, 1024, 2)
+        self.adj_learning0 = CNNAttention(1024, 768, 32)
+        # self.adj_learning0 = CNNViT(1024, 768, 32, 1024, 2)
         self.backbone3 = backbone_res[7]
-        # self.adj_learning1 = CNNAttention(2048, 768, 16)
-        self.adj_learning1 = CNNViT(2048, 768, 16, 1024, 2)
-
-        self.to_out = nn.Sequential(
-            nn.Conv2d(2048, 512, kernel_size=(1, 1), stride=(1, 1), bias=False),
-            nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False),
-            nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(512, 2048, kernel_size=(1, 1), stride=(1, 1), bias=False),
-            nn.BatchNorm2d(2048, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
-        )
-        self.to_out_relu = nn.ReLU(inplace=True)
+        self.adj_learning1 = CNNAttention(2048, 768, 16)
+        # self.adj_learning1 = CNNViT(2048, 768, 16, 2048, 2)
 
         self.gender_encoder = nn.Linear(1, 32)
         self.gender_bn = nn.BatchNorm1d(32)
@@ -193,22 +181,49 @@ class Student_GCN_Model(nn.Module):
             nn.Linear(512, 1)
         )
 
+        self.fc_cls2 = nn.Sequential(
+            nn.Linear(1024 + 32, 1024),
+            nn.BatchNorm1d(1024),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(1024, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(512, 1)
+        )
+
+        self.fc_cls3 = nn.Sequential(
+            nn.Linear(2048 + 32, 1024),
+            nn.BatchNorm1d(1024),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(1024, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(512, 1)
+        )
+
     def forward(self, image, gender):
         gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender))) # B * 32
         x0, attn0 = self.attn0(self.backbone0(image))
         x1, attn1 = self.attn1(self.backbone1(x0))
-        x2, attn21, attn22 = self.adj_learning0(self.backbone2(x1))
-        x3, attn31, attn32 = self.adj_learning1(self.backbone3(x2))
-        x3_out = self.to_out(x3)
-        x3 = self.to_out_relu(x3 + x3_out)
+        x2, cls_token2, attn2 = self.adj_learning0(self.backbone2(x1))
+        x3, cls_token3, attn3 = self.adj_learning1(self.backbone3(x2))
+
         x = F.adaptive_avg_pool2d(x3, 1)
         x = torch.flatten(x, 1)
 
         x = torch.cat([x, gender_encode], dim=1)
+        cls_token2 = torch.cat([cls_token2, gender_encode], dim=1)
+        cls_token3 = torch.cat([cls_token3, gender_encode], dim=1)
 
         x = self.fc(x)
+        cls_token2 = self.fc_cls2(cls_token2)
+        cls_token3 = self.fc_cls3(cls_token3)
 
-        return x, attn0, attn1, [attn21, attn22], [attn31, attn32]
+        return x, cls_token2, cls_token3, attn0, attn1, attn2, attn3
 
     def freeze_params(self):
         for _, param in self.backbone0.named_parameters():
