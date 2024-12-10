@@ -28,9 +28,9 @@ flags['num_workers'] = 8
 flags['num_epochs'] = 100
 flags['data_dir'] = '../archive'
 flags['teacher_path'] = "../unet_segmentation_Attn_UNet_RSNA_256.pth"
-flags['backbone_path'] = "./KD_modify_firstConv_RandomCrop.bin"
+flags['backbone_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = './KD_All_Output_3090'
-flags['model_name'] = 'KD_Res50_CBAM_BSPC_only_CLS_AVGPool_DelFFN_DelRes_StackViT_pretrained'
+flags['model_name'] = 'KD_Res50_CBAM_BSPC_only_CLS_AVGPool_pretrained_2'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
@@ -78,7 +78,7 @@ def train_fn(train_loader, loss_fn, optimizer):
         # forward
         # firstly, get attention map from teacher model
         _, _, _, _, _, _, t1, t2, t3, t4 = teacher.forward_attention(image)
-        class_feature, s1, s2 = student_model(image, gender)
+        class_feature, s1, s2, s3, s4 = student_model(image, gender)
         y_pred = class_feature.squeeze()
         label = label.squeeze()
 
@@ -117,7 +117,7 @@ def evaluate_fn(val_loader):
             label = data[1].cuda()
 
             _, _, _, _, _, _, t1, t2, t3, t4 = teacher.forward_attention(image)
-            class_feature, s1, s2, s3, s4 = student_model.infer(image, gender)
+            class_feature, s1, s2, s3, s4 = student_model(image, gender)
             y_pred = (class_feature * boneage_div) + boneage_mean  # 反归一化为原始标签
             y_pred = y_pred.squeeze()
             label = label.squeeze()
@@ -126,8 +126,7 @@ def evaluate_fn(val_loader):
             mae_loss += batch_loss
 
             if batch_idx == len(val_loader) - 1:
-                # save_attn_KD(t1[0], t2[0], t3[0], t4[0], s1[0], s2[0], s3[0], s4[0], save_path)
-                save_attn_Contrast(t1[0], t2[0], t3[0], t4[0], s1[0], s2[0], s3, s4, save_path)
+                save_attn_KD(t1[0], t2[0], t3[0], t4[0], s1[0], s2[0], s3[0], s4[0], save_path)
 
     return mae_loss, attn_loss, val_total_size
 
@@ -151,8 +150,6 @@ def training_start(flags):
         ## Evaluation
         # Sets net to eval and no grad context
         valid_mae_loss, valid_attn_loss, val_total_size = evaluate_fn(valid_loader)
-
-        save_attn_6Stage(test_loader=test_loader, model=student_model, save_path=save_path)
 
         training_mean_loss, training_mean_attn_loss = training_loss / total_size, training_attn_loss / total_size
         valid_mean_mae, valid_mean_attn_loss = valid_mae_loss / val_total_size, valid_attn_loss / val_total_size

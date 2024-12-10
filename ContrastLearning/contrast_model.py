@@ -94,16 +94,12 @@ class CNNAttention(nn.Module):
 
         self.fc1 = nn.Conv2d(in_channels, attn_dim, 1, bias=False)
         self.relu1 = nn.ReLU()
+        self.fc2 = nn.Conv2d(attn_dim, in_channels, 1, bias=False)
+        self.sigmoid = nn.Sigmoid()
         self.norm = nn.LayerNorm(attn_dim)
         self.softmax = nn.Softmax(dim=-1)
 
-        # self.to_out = nn.Sequential(
-        #     nn.Conv2d(in_channels, in_channels, kernel_size=1, padding=0, bias=False),
-        #     # nn.BatchNorm2d(in_channels), # inner_dim
-        #     nn.ReLU(inplace=True),
-        # )
-
-    def forward(self, x, mode="train"):
+    def forward(self, x):
         avg_vector = self.relu1(self.fc1(self.avg_pool(x)))
         # max_vector = self.relu1(self.fc1(self.max_pool(x)))
         # cls_token = avg_vector + max_vector   # B C 1 1
@@ -118,15 +114,10 @@ class CNNAttention(nn.Module):
         attn = self.softmax(attn * self.scale)  # b 1 n
         attn = rearrange(attn, 'b d (h w) -> b d h w', h=self.in_size, w=self.in_size)
 
-        feature_out = attn * x
-        # feature_out = self.to_out(feature_out)
 
         # avg_out = self.fc2(self.relu1(self.fc1(self.avg_pool(x))))
         # max_out = self.fc2(self.relu1(self.fc1(self.max_pool(x))))
-        if mode == "train":
-            return feature_out
-        else:
-            return feature_out, attn
+        return attn * x, attn
 
 
 class CNNFeedForward(nn.Module):
@@ -174,7 +165,6 @@ class CNNViT(nn.Module):
 
 
 class Student_GCN_Model(nn.Module):
-    """仅限resnet的stage1和stage2、CBAM1、CBAM2的模块传入预训练参数并固定"""
     def __init__(self, backbone, backbone_res):
         super(Student_GCN_Model, self).__init__()
         # self.out_channels = out_channels
@@ -185,11 +175,9 @@ class Student_GCN_Model(nn.Module):
         self.freeze_params()
 
         self.backbone2 = backbone_res[6]
-        # self.adj_learning0 = CNNAttention(1024, 768, 32)
-        self.adj_learning0 = CNNViT(1024, 768, 32, 2048, depth=2)
+        self.adj_learning0 = CNNAttention(1024, 768, 32)
         self.backbone3 = backbone_res[7]
-        # self.adj_learning1 = CNNAttention(2048, 768, 16)
-        self.adj_learning1 = CNNViT(2048, 768, 16, 2048, depth=2)
+        self.adj_learning1 = CNNAttention(2048, 768, 16)
 
         self.gender_encoder = nn.Linear(1, 32)
         self.gender_bn = nn.BatchNorm1d(32)
@@ -198,9 +186,11 @@ class Student_GCN_Model(nn.Module):
             nn.Linear(2048 + 32, 1024),
             nn.BatchNorm1d(1024),
             nn.ReLU(),
+            # nn.Dropout(0.2),
             nn.Linear(1024, 512),
             nn.BatchNorm1d(512),
             nn.ReLU(),
+            # nn.Dropout(0.2),
             nn.Linear(512, 1)
         )
 
@@ -208,23 +198,8 @@ class Student_GCN_Model(nn.Module):
         gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender))) # B * 32
         x0, attn0 = self.attn0(self.backbone0(image))
         x1, attn1 = self.attn1(self.backbone1(x0))
-        x2 = self.adj_learning0(self.backbone2(x1))
-        x3 = self.adj_learning1(self.backbone3(x2))
-        x = F.adaptive_avg_pool2d(x3, 1)
-        x = torch.flatten(x, 1)
-
-        x = torch.cat([x, gender_encode], dim=1)
-
-        x = self.fc(x)
-
-        return x, attn0, attn1
-
-    def infer(self, image, gender):
-        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender))) # B * 32
-        x0, attn0 = self.attn0(self.backbone0(image))
-        x1, attn1 = self.attn1(self.backbone1(x0))
-        x2, attn2 = self.adj_learning0(self.backbone2(x1), mode="record")
-        x3, attn3 = self.adj_learning1(self.backbone3(x2), mode="record")
+        x2, attn2 = self.adj_learning0(self.backbone2(x1))
+        x3, attn3 = self.adj_learning1(self.backbone3(x2))
         x = F.adaptive_avg_pool2d(x3, 1)
         x = torch.flatten(x, 1)
 
@@ -279,31 +254,4 @@ if __name__ == '__main__':
 
     # output, cls_token0, token0_attn1, token0_attn2, cls_token1, token1_attn1, token1_attn2, attn0, attn1 = contrast_model(data, gender)
     # print(f"x: {output.shape}\ncls_token0: {cls_token0.shape}\ncls_token1: {cls_token1.shape}")
-    with torch.no_grad():
-        output, attn0, attn1, attn2, attn3 = student_GCN.infer(data, gender)
-        print(f"x: {output.shape}\nattn0: {attn0.shape}\nattn1: {attn1.shape}\n")
-        s31 = attn2[0][0]
-        s32 = attn2[1][0]
-        s41 = attn3[0][0]
-        s42 = attn3[1][0]
-        fig, axes = plt.subplots(2, 2, figsize=(15, 5))
-
-        axes[0][0].imshow(s31.squeeze().cpu().numpy(), cmap='viridis')
-        axes[0][0].set_title('s31')
-        axes[0][0].axis('off')
-
-        axes[0][1].imshow(s32.squeeze().cpu().numpy(), cmap='viridis')
-        axes[0][1].set_title('s32')
-        axes[0][1].axis('off')
-
-        axes[1][0].imshow(s41.squeeze().cpu().numpy(), cmap='viridis')
-        axes[1][0].set_title('s41')
-        axes[1][0].axis('off')
-
-        axes[1][1].imshow(s42.squeeze().cpu().numpy(), cmap='viridis')
-        axes[1][1].set_title('s42')
-        axes[1][1].axis('off')
-
-        plt.tight_layout()
-        plt.show()
 
