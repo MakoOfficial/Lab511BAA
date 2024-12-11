@@ -87,8 +87,14 @@ def train_fn(train_loader, loss_fn, triple_fn, optimizer):
         # backward,calculate gradients
         penalty_loss = L1_penalty(contrast_model, 1e-5)
         total_loss = loss + penalty_loss
-        total_loss = total_loss + triple_loss_0.squeeze(0) * flags['triple_loss_0_lambda']
-        total_loss = total_loss + triple_loss_1.squeeze(0) * flags['triple_loss_1_lambda']
+        if triple_loss_0 == 0:
+            total_loss = total_loss + triple_loss_0
+        else:
+            total_loss = total_loss + triple_loss_0.squeeze(0) * flags['triple_loss_0_lambda']
+        if triple_loss_1 == 0:
+            total_loss = total_loss + triple_loss_1
+        else:
+            total_loss = total_loss + triple_loss_1.squeeze(0) * flags['triple_loss_1_lambda']
         total_loss.backward()
 
         # backward,update parameter
