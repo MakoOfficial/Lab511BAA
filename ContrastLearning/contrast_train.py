@@ -33,8 +33,8 @@ flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
 flags['weight_decay'] = 0
 flags['best_loss'] = 0
-flags['triple_loss_0_lambda'] = 0.3
-flags['triple_loss_1_lambda'] = 0.2
+flags['triple_loss_0_lambda'] = 0.03
+flags['triple_loss_1_lambda'] = 0.03
 
 seed = flags['seed']
 torch.manual_seed(seed)
@@ -66,6 +66,7 @@ def train_fn(train_loader, loss_fn, triple_fn, optimizer):
         image, gender = data[0]
         image = image.type(torch.FloatTensor).cuda()
         gender = gender.type(torch.FloatTensor).cuda()
+        img_gt = data[2].type(torch.FloatTensor).cuda()
 
         batch_size = len(data[1])
         label = data[1].type(torch.FloatTensor).cuda()
@@ -80,8 +81,8 @@ def train_fn(train_loader, loss_fn, triple_fn, optimizer):
         label = label.squeeze()
 
         loss = loss_fn(y_pred, label)
-        triple_loss_0 = triple_fn(cls_token0, label)
-        triple_loss_1 = triple_fn(cls_token1, label)
+        triple_loss_0 = triple_fn(cls_token0, img_gt)
+        triple_loss_1 = triple_fn(cls_token1, img_gt)
 
         # backward,calculate gradients
         penalty_loss = L1_penalty(contrast_model, 1e-5)

@@ -266,6 +266,20 @@ class Student_Contrast_Model(nn.Module):
             nn.Linear(512, 1)
         )
 
+        self.cls_Embedding_0 = nn.Sequential(
+            nn.Linear(1024 + 32, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512, 1024)
+        )
+
+        self.cls_Embedding_1 = nn.Sequential(
+            nn.Linear(2048 + 32, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512, 1024)
+        )
+
     def forward(self, image, gender):
         gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender))) # B * 32
         x0, attn0 = self.attn0(self.backbone0(image))
@@ -277,8 +291,11 @@ class Student_Contrast_Model(nn.Module):
         x = torch.flatten(x, 1)
 
         x = torch.cat([x, gender_encode], dim=1)
-        # cls_token2 = torch.cat([cls_token2, gender_encode], dim=1)
-        # cls_token3 = torch.cat([cls_token3, gender_encode], dim=1)
+        cls_token2 = torch.cat([cls_token2, gender_encode], dim=1)
+        cls_token3 = torch.cat([cls_token3, gender_encode], dim=1)
+
+        cls_token2 = self.cls_Embedding_0(cls_token2)
+        cls_token3 = self.cls_Embedding_1(cls_token3)
 
         x = self.fc(x)
 

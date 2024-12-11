@@ -52,7 +52,7 @@ class RSNATrainDataset(BaseDataset):
         row, image_path = self.get_image_path(index)
         image = Image.open(image_path).convert('L')
 
-        return (RSNA_transform_train(image), Tensor([row['male']])), row['zscore']
+        return (RSNA_transform_train(image), Tensor([row['male']])), row['zscore'], row['boneage']
 
 
 class RSNAValidDataset(BaseDataset):
