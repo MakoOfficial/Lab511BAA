@@ -8,6 +8,16 @@ import torch.nn.functional as F
 from PIL import Image
 
 
+stage6_boneage = [14, 12,
+                  24, 24,
+                  84, 84,
+                  156, 156,
+                  180, 180,
+                  192, 204]
+
+stage6_gender = [0, 1]
+
+
 def iou(input, target, classes=1):
     """  compute the value of iou
     :param input:  2d array, int, prediction
@@ -106,7 +116,7 @@ def log_losses_to_csv(training_loss, mean_attention_loss, val_loss, val_attn, co
           f"Val Attn Loss: {val_attn}, Cost Time: {round(cost_time, 2)}, LR: {lr}")
 
 
-def log_contrast_losses_to_csv(training_loss, mean_triple_loss, val_loss, cost_time, lr, log_file_path):
+def log_contrast_losses_to_csv(training_loss, mean_triple_loss_0, mean_triple_loss_1, val_loss, cost_time, lr, log_file_path):
     # 确保目标文件夹存在
     os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
 
@@ -115,18 +125,18 @@ def log_contrast_losses_to_csv(training_loss, mean_triple_loss, val_loss, cost_t
         with open(log_file_path, mode='w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(
-                ["Training_Loss", "Mean_Contrast_Loss", "Validation_Loss", "Cost_Time", "LR"])
+                ["Training_Loss", "Mean_Contrast_Loss_0", "Mean_Contrast_Loss_1", "Validation_Loss", "Cost_Time", "LR"])
 
     # 追加写入损失值
     with open(log_file_path, mode='a', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow([round(training_loss, 4), round(mean_triple_loss, 5),
-                         round(val_loss, 3),
+        writer.writerow([round(training_loss, 4), round(mean_triple_loss_0, 5),
+                         round(mean_triple_loss_1, 5), round(val_loss, 3),
                          round(cost_time, 2), lr])
 
     # 打印到终端
-    print(f"Training Loss: {training_loss}, Mean Contrast Loss: {mean_triple_loss}, Validation Loss: {val_loss}, "
-          f", Cost Time: {round(cost_time, 2)}, LR: {lr}")
+    print(f"Training Loss: {training_loss}, Mean Contrast Loss 0: {mean_triple_loss_0}, Mean Contrast Loss 1: "
+          f"{mean_triple_loss_1}, Validation Loss: {val_loss}, Cost Time: {round(cost_time, 2)}, LR: {lr}")
 
 
 def log_valid_result_to_csv(id_list, boneage_list, male_list, pred_list, loss_list, log_file_path):
@@ -278,6 +288,66 @@ def save_attn_6Stage(test_loader, model, save_path):
                 plt.savefig(os.path.join(save_path, save_name))
 
                 plt.clf()
+
+
+def save_contrast_attn_6Stage(test_loader, model, save_path):
+    """输出的图片数量一定得是12张"""
+    model.eval()
+    with torch.no_grad():
+        for batch_idx, data in enumerate(test_loader):
+
+            image, gender = data[0]
+            image = image.type(torch.FloatTensor).cuda()
+            gender = gender.type(torch.FloatTensor).cuda()
+
+            class_feature, _, _, s1, s2, s3, s4 = model(image, gender)
+            img_num = len(image)
+            for i in range(img_num):
+                """对于第i张图片"""
+                age = stage6_boneage[i]
+                gender = i % 2
+                fig, axes = plt.subplots(1, 2, figsize=(15, 5))
+                save_name = f"attn_{age}_{gender}_Contrast.png"
+
+                axes[0].imshow(s3[i].squeeze().cpu().numpy(), cmap='viridis')
+                axes[0].set_title("attn_s3")
+                axes[0].axis('off')
+
+                axes[1].imshow(s4[i].squeeze().cpu().numpy(), cmap='viridis')
+                axes[1].set_title("attn_s4")
+                axes[1].axis('off')
+
+                plt.tight_layout()
+                plt.savefig(os.path.join(save_path, save_name))
+
+                plt.clf()
+                plt.close('all')
+
+
+def save_attn_all(s3, s4, img_ids, save_path):
+    attn_path = os.path.join(save_path, "attn_dir")
+    os.makedirs(attn_path, exist_ok=True)
+    with torch.no_grad():
+        img_num = len(s3)
+        num_cols = 2
+        for i in range(img_num):
+            """对于第i张图片"""
+            fig, axes = plt.subplots(1, num_cols, figsize=(15, 5))
+            save_name = f"{int(img_ids[i])}.png"
+
+            axes[0].imshow(s3[i].squeeze().cpu().numpy(), cmap='viridis')
+            axes[0].set_title("attn_s3")
+            axes[0].axis('off')
+
+            axes[1].imshow(s4[i].squeeze().cpu().numpy(), cmap='viridis')
+            axes[1].set_title("attn_s4")
+            axes[1].axis('off')
+
+            plt.tight_layout()
+            plt.savefig(os.path.join(attn_path, save_name))
+
+            plt.clf()
+            plt.close('all')
 
 
 def KL_loss(p, q):

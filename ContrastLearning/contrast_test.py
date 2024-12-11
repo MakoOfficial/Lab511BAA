@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 
 from datasets import RSNATestDataset
-from utils import log_valid_result_to_csv, save_attn_6Stage
+from utils import log_valid_result_to_csv, save_attn_6Stage, save_attn_all
 
 from Student.student_model import get_student
 from ContrastLearning.contrast_model import get_student_GCN
@@ -21,14 +21,14 @@ flags['num_workers'] = 8
 flags['data_dir'] = '../../Dataset/RSNA'
 flags['teacher_path'] = "../ckp/Unet/unet_segmentation_Attn_UNet.pth"
 flags['backbone_path'] = "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['model'] = "../KD_All_Output/KD_Res50_CBAM_BSPC_only_CLS_AVGPool_FFN_NoBatch_pretrained/KD_Res50_CBAM_BSPC_only_CLS_AVGPool_FFN_NoBatch_pretrained.bin"
+flags['model'] = "../KD_All_Output/KD_Res50_CBAM_BSPC_only_CLS_AVGPool_multiCls_pretrained_12-10/KD_Res50_CBAM_BSPC_only_CLS_AVGPool_multiCls_pretrained_12-10.bin"
 flags['mask_option'] = False
 
 
 def evaluate_fn(val_loader):
     student_model.eval()
 
-    log_path = os.path.join(ckp_dir, "valid_large.csv")
+    log_path = os.path.join(ckp_dir, "Validation.csv")
 
     mae_loss = 0
     val_total_size = 0
@@ -44,7 +44,7 @@ def evaluate_fn(val_loader):
             label = data[1].cuda()
 
             _, _, _, _, _, _, t1, t2, t3, t4 = teacher.forward_attention(image)
-            class_feature, s1, s2, s3, s4 = student_model(image, gender)
+            class_feature, cls_token2, cls_token3, s1, s2, s3, s4 = student_model(image, gender)
             y_pred = (class_feature * boneage_div) + boneage_mean  # 反归一化为原始标签
 
             y_pred = y_pred.squeeze()
@@ -53,6 +53,7 @@ def evaluate_fn(val_loader):
             mae_loss += batch_loss.sum().item()
 
             log_valid_result_to_csv(id, label.cpu(), gender.cpu(), y_pred.cpu(), batch_loss.cpu(), log_path)
+            save_attn_all(s3, s4, id, save_path=ckp_dir)
 
     print(f"valid loss: {mae_loss / val_total_size}")
 
@@ -83,7 +84,7 @@ if __name__ == "__main__":
     train_csv = os.path.join(data_dir, "train.csv")
     train_df = pd.read_csv(train_csv)
     valid_csv = os.path.join(data_dir, "valid.csv")
-    valid_df = pd.read_csv("../KD_All_Output/KD_modify_firstConv_RandomCrop/valid_loss_2.csv")
+    valid_df = pd.read_csv("../KD_All_Output/KD_modify_firstConv_RandomCrop/valid_loss.csv")
     # valid_df = pd.read_csv(valid_csv)
 
     test_csv = os.path.join(data_dir, "valid_test.csv")
@@ -115,7 +116,7 @@ if __name__ == "__main__":
         shuffle=False,
         pin_memory=True
     )
-    # evaluate_fn(valid_loader)
+    evaluate_fn(valid_loader)
 
-    save_attn_6Stage(test_loader, student_model, ckp_dir)
+    # save_attn_6Stage(test_loader, student_model, ckp_dir)
 

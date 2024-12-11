@@ -88,7 +88,7 @@ class AdapitiveTripletLoss(nn.Module):
             # loss = anchor_to_near - anchor_to_far + alpha.cuda() * self.m
 
             if loss >= 0:
-                loss_triplet += loss
+                loss_triplet = loss_triplet + loss
 
         return loss_triplet
 
