@@ -16,6 +16,7 @@ from utils import L1_penalty, log_contrast_losses_to_csv, save_attn_KD, save_con
 
 from ContrastLearning.contrast_model import get_student_contrast_model
 from ContrastLearning.triplet_loss import AdapitiveTripletLoss
+from ContrastLearning.WCL import WCL
 
 warnings.filterwarnings("ignore")
 
@@ -25,16 +26,18 @@ flags['batch_size'] = 32
 flags['num_workers'] = 8
 flags['num_epochs'] = 100
 flags['data_dir'] = '../archive'
-flags['student_path'] = "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['save_path'] = '../KD_All_Output_3090'
-flags['model_name'] = 'Contrast_Res50_CBAM_AVGPool_pretrained_12-11'
+flags['student_path'] = "./KD_modify_firstConv_RandomCrop.bin"
+flags['save_path'] = './KD_All_Output_3090'
+flags['model_name'] = 'Contrast_Res50_CBAM_AVGPool_pretrained_12-12'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
 flags['weight_decay'] = 0
 flags['best_loss'] = 0
-flags['triple_loss_0_lambda'] = 0.03
-flags['triple_loss_1_lambda'] = 0.03
+flags['triple_loss_0_lambda'] = 0.5
+flags['triple_loss_1_lambda'] = 0.5
+flags['WCL_setting'] = dict(p=0.5, tempS=0.2, thresholdS=0.02, tempW=0.2)
+
 
 seed = flags['seed']
 torch.manual_seed(seed)
@@ -100,7 +103,7 @@ def train_fn(train_loader, loss_fn, triple_fn, optimizer):
         # backward,update parameter
         optimizer.step()
         batch_loss = loss.item()
-        print(f"batch_loss: {batch_loss}, triple loss 0: {triple_loss_0.item()}, triple loss 1: {triple_loss_1.item()}, "
+        print(f"batch_loss: {batch_loss}, WCL0: {triple_loss_0.item()}, WCL1: {triple_loss_1.item()}, "
               f"penalty_loss: {penalty_loss.item()}")
 
         training_loss += batch_loss
@@ -145,7 +148,10 @@ def training_start(flags):
     ## Network, optimizer, and loss function creation
     best_loss = float('inf')
     loss_fn = nn.L1Loss(reduction='sum')
-    triple_fn = AdapitiveTripletLoss()
+    # triple_fn = AdapitiveTripletLoss()
+    wcl_setting = flags['WCL_setting']
+    triple_fn = WCL(p=wcl_setting['p'], tempS=wcl_setting['tempS'], thresholdS=wcl_setting['thresholdS'], tempW=wcl_setting['tempW'])
+
 
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, contrast_model.parameters()),
                                  lr=flags['lr'], weight_decay=flags['weight_decay'])

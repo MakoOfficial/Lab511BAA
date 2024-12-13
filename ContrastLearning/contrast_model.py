@@ -268,14 +268,12 @@ class Student_Contrast_Model(nn.Module):
 
         self.cls_Embedding_0 = nn.Sequential(
             nn.Linear(1024 + 32, 512),
-            nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Linear(512, 1024)
         )
 
         self.cls_Embedding_1 = nn.Sequential(
             nn.Linear(2048 + 32, 512),
-            nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Linear(512, 1024)
         )
@@ -294,8 +292,8 @@ class Student_Contrast_Model(nn.Module):
         cls_token2 = torch.cat([cls_token2, gender_encode], dim=1)
         cls_token3 = torch.cat([cls_token3, gender_encode], dim=1)
 
-        cls_token2 = self.cls_Embedding_0(cls_token2)
-        cls_token3 = self.cls_Embedding_1(cls_token3)
+        cls_token2 = F.normalize(self.cls_Embedding_0(cls_token2), dim=1)
+        cls_token3 = F.normalize(self.cls_Embedding_1(cls_token3), dim=1)
 
         x = self.fc(x)
 
