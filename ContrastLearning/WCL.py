@@ -26,23 +26,54 @@ class WCL(nn.Module):
         score_matrix = torch.exp(-(torch.div(torch.abs(label_clone_1 - label_clone_2), self.tempS)).pow(self.p))
         score_matrix = score_matrix * (score_matrix >= self.thresholdS)
         score_matrix_sum = score_matrix.sum(-1, keepdim=True)
-        score_matrix = - torch.div(score_matrix, score_matrix_sum)
-        # print(score_matrix)
+        score_matrix = torch.div(score_matrix, score_matrix_sum)
         return score_matrix
 
-    def count_distance(self, logit):
+    def count_score_in(self, label):
+        length = len(label)
+        label_clone_1 = label.clone().view(length, 1)
+        label_clone_2 = label.clone().view(1, length)
+
+        score_matrix = torch.exp(-(torch.div(torch.abs(label_clone_1 - label_clone_2), self.tempS)).pow(self.p))
+        score_matrix = score_matrix * (score_matrix >= self.thresholdS)
+        print(score_matrix)
+        return score_matrix
+
+    def count_distance_out(self, logit):
         logit_clone = logit.clone()
         dot = torch.exp(torch.matmul(logit, logit_clone.T) / self.tempW)    # BxB
         dot_sum = dot.sum(-1, keepdim=True)
         dot_matrix = torch.log(torch.clamp(dot / dot_sum, min=1e-10))
-
+        print(dot_matrix)
         return dot_matrix
 
+    def count_distance_in(self, logit):
+        logit_clone = logit.clone()
+        dot = torch.exp(torch.matmul(logit, logit_clone.T) / self.tempW)    # BxB
+        print(dot)
+        dot_sum = dot.sum(-1, keepdim=True)
+        dot_matrix = torch.clamp(torch.div(dot, dot_sum), min=1e-10)
+        print(dot_matrix)
+        return dot_matrix
+
+    # def forward(self, minibatch_features, label):
+    #     """count out"""
+    #     # mask = torch.eq(label, label.T).float().cuda()
+    #     score_matrix = - self.count_score(label)
+    #     dot_matrix = self.count_distance_in(minibatch_features)
+    #     loss_triplet = (score_matrix * dot_matrix).sum()
+    #     return loss_triplet
+
     def forward(self, minibatch_features, label):
+        """count in"""
         # mask = torch.eq(label, label.T).float().cuda()
-        score_matrix = self.count_score(label)
-        dot_matrix = self.count_distance(minibatch_features)
-        loss_triplet = (score_matrix * dot_matrix).sum()
+        score_matrix = self.count_score_in(label)
+        dot_matrix = self.count_distance_in(minibatch_features)
+        weight_dot_matrix = (score_matrix * dot_matrix).sum(-1)
+        print(weight_dot_matrix)
+        weight_dot_matrix = - torch.log(torch.clamp(weight_dot_matrix, min=1e-10))
+        print(weight_dot_matrix)
+        loss_triplet = weight_dot_matrix.sum()
         return loss_triplet
 
 
