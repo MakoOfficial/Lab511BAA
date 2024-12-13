@@ -36,7 +36,6 @@ class WCL(nn.Module):
 
         score_matrix = torch.exp(-(torch.div(torch.abs(label_clone_1 - label_clone_2), self.tempS)).pow(self.p))
         score_matrix = score_matrix * (score_matrix >= self.thresholdS)
-        print(score_matrix)
         return score_matrix
 
     def count_distance_out(self, logit):
@@ -44,16 +43,13 @@ class WCL(nn.Module):
         dot = torch.exp(torch.matmul(logit, logit_clone.T) / self.tempW)    # BxB
         dot_sum = dot.sum(-1, keepdim=True)
         dot_matrix = torch.log(torch.clamp(dot / dot_sum, min=1e-10))
-        print(dot_matrix)
         return dot_matrix
 
     def count_distance_in(self, logit):
         logit_clone = logit.clone()
         dot = torch.exp(torch.matmul(logit, logit_clone.T) / self.tempW)    # BxB
-        print(dot)
         dot_sum = dot.sum(-1, keepdim=True)
         dot_matrix = torch.clamp(torch.div(dot, dot_sum), min=1e-10)
-        print(dot_matrix)
         return dot_matrix
 
     # def forward(self, minibatch_features, label):
@@ -70,9 +66,7 @@ class WCL(nn.Module):
         score_matrix = self.count_score_in(label)
         dot_matrix = self.count_distance_in(minibatch_features)
         weight_dot_matrix = (score_matrix * dot_matrix).sum(-1)
-        print(weight_dot_matrix)
         weight_dot_matrix = - torch.log(torch.clamp(weight_dot_matrix, min=1e-10))
-        print(weight_dot_matrix)
         loss_triplet = weight_dot_matrix.sum()
         return loss_triplet
 
