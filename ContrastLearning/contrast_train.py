@@ -28,14 +28,14 @@ flags['num_epochs'] = 100
 flags['data_dir'] = '../archive'
 flags['student_path'] = "./KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = './KD_All_Output_3090'
-flags['model_name'] = 'Contrast_WCL_IN_BN_Res50_CBAM_AVGPool_pretrained_12-14'
+flags['model_name'] = 'Contrast_WCL_IN_Linear_Res50_CBAM_AVGPool_pretrained_12-14'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
 flags['weight_decay'] = 0
 flags['best_loss'] = 0
-flags['triple_loss_0_lambda'] = 0.5
-flags['triple_loss_1_lambda'] = 0.5
+flags['triple_loss_0_lambda'] = 0.4
+flags['triple_loss_1_lambda'] = 0.4
 flags['WCL_setting'] = dict(p=0.5, tempS=0.2, thresholdS=0.02, tempW=0.2)
 
 
