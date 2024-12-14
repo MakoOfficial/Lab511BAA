@@ -10,7 +10,7 @@ from datasets import RSNATestDataset
 from utils import log_valid_result_to_csv, save_attn_6Stage, save_attn_all
 
 from Student.student_model import get_student
-from ContrastLearning.contrast_model import get_student_GCN
+from ContrastLearning.contrast_model import get_student_GCN, get_student_contrast_model
 from Unet.UNets import get_Attn_Unet
 
 warnings.filterwarnings("ignore")
@@ -21,7 +21,7 @@ flags['num_workers'] = 8
 flags['data_dir'] = '../../Dataset/RSNA'
 flags['teacher_path'] = "../ckp/Unet/unet_segmentation_Attn_UNet.pth"
 flags['backbone_path'] = "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['model'] = "../KD_All_Output/KD_Res50_CBAM_BSPC_only_CLS_AVGPool_multiCls_pretrained_12-10/KD_Res50_CBAM_BSPC_only_CLS_AVGPool_multiCls_pretrained_12-10.bin"
+flags['model'] = "../KD_All_Output/Contrast_WCL_IN_Res50_CBAM_AVGPool_pretrained_12-13/Contrast_WCL_IN_Res50_CBAM_AVGPool_pretrained_12-13.bin"
 flags['mask_option'] = False
 
 
@@ -70,7 +70,8 @@ if __name__ == "__main__":
     teacher.eval()
     #   prepare student model
     student_path = flags['model']
-    student_model = get_student_GCN(backbone_path=flags['backbone_path']).cuda()
+    # student_model = get_student_GCN(backbone_path=flags['backbone_path']).cuda()
+    student_model = get_student_contrast_model(student_path=flags['backbone_path']).cuda()
     student_model.load_state_dict(torch.load(student_path), strict=True)
     for param in student_model.parameters():
         param.requires_grad = False
@@ -98,7 +99,7 @@ if __name__ == "__main__":
     print(f'valid file save at {ckp_dir}')
 
     Test_set = RSNATestDataset(valid_df, valid_path, boneage_mean, boneage_div)
-    stage6_set = RSNATestDataset(test_df, valid_path, boneage_mean, boneage_div)
+    # stage6_set = RSNATestDataset(test_df, valid_path, boneage_mean, boneage_div)
 
     # print(f"Test set length: {Test_set.__len__()}")
     print(f"Test set length: 1425")
@@ -110,12 +111,12 @@ if __name__ == "__main__":
         pin_memory=True
     )
 
-    test_loader = torch.utils.data.DataLoader(
-        stage6_set,
-        batch_size=12,
-        shuffle=False,
-        pin_memory=True
-    )
+    # test_loader = torch.utils.data.DataLoader(
+    #     stage6_set,
+    #     batch_size=12,
+    #     shuffle=False,
+    #     pin_memory=True
+    # )
     evaluate_fn(valid_loader)
 
     # save_attn_6Stage(test_loader, student_model, ckp_dir)
