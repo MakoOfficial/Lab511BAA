@@ -267,17 +267,17 @@ class Student_Contrast_Model(nn.Module):
         )
 
         self.cls_Embedding_0 = nn.Sequential(
-            nn.Linear(1024 + 32, 1024),
+            nn.Linear(1024 + 32, 512),
             nn.ReLU(),
             # nn.BatchNorm1d(512),
-            nn.Linear(1024, 512)
+            nn.Linear(512, 1024)
         )
 
         self.cls_Embedding_1 = nn.Sequential(
-            nn.Linear(2048 + 32, 1024),
+            nn.Linear(2048 + 32, 512),
             nn.ReLU(),
             # nn.BatchNorm1d(512),
-            nn.Linear(1024, 512)
+            nn.Linear(512, 1024)
         )
 
     def forward(self, image, gender):

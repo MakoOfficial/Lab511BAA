@@ -21,7 +21,7 @@ flags['num_workers'] = 8
 flags['data_dir'] = '../../Dataset/RSNA'
 flags['teacher_path'] = "../ckp/Unet/unet_segmentation_Attn_UNet.pth"
 flags['backbone_path'] = "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['model'] = "../KD_All_Output/Contrast_WCL_IN_Res50_CBAM_AVGPool_pretrained_12-13/Contrast_WCL_IN_Res50_CBAM_AVGPool_pretrained_12-13.bin"
+flags['model'] = "../KD_All_Output/Contrast_WCL_IN_Linear_Res50_CBAM_AVGPool_pretrained_12-14/Contrast_WCL_IN_Linear_Res50_CBAM_AVGPool_pretrained_12-14.bin"
 flags['mask_option'] = False
 
 
@@ -85,8 +85,8 @@ if __name__ == "__main__":
     train_csv = os.path.join(data_dir, "train.csv")
     train_df = pd.read_csv(train_csv)
     valid_csv = os.path.join(data_dir, "valid.csv")
-    valid_df = pd.read_csv("../KD_All_Output/KD_modify_firstConv_RandomCrop/valid_loss.csv")
-    # valid_df = pd.read_csv(valid_csv)
+    # valid_df = pd.read_csv("../KD_All_Output/KD_modify_firstConv_RandomCrop/valid_loss.csv")
+    valid_df = pd.read_csv(valid_csv)
 
     test_csv = os.path.join(data_dir, "valid_test.csv")
     test_df = pd.read_csv(test_csv)
