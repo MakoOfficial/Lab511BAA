@@ -8,8 +8,8 @@ from Unet.UNets import get_Attn_Unet
 from Student.student_model import get_student
 from datasets import RSNA_transform_train, RSNA_transform_val
 
-def visualize_attn_kd(t1, t2, t3, t4, s1, s2, s3, s4, save_path):
-    fig, axes = plt.subplots(2, 4, figsize=(15, 5))
+def visualize_attn_kd(img, t1, t2, t3, t4, s1, s2, s3, s4, save_path):
+    fig, axes = plt.subplots(2, 5, figsize=(15, 5))
 
     axes[0][0].imshow(t1.squeeze().cpu().numpy(), cmap='viridis')
     axes[0][0].set_title('t1')
@@ -43,9 +43,13 @@ def visualize_attn_kd(t1, t2, t3, t4, s1, s2, s3, s4, save_path):
     axes[1][3].set_title('s4')
     axes[1][3].axis('off')
 
+    axes[0][4].imshow(img.squeeze().cpu().numpy(), cmap='gray')
+    axes[0][4].set_title('s4')
+    axes[0][4].axis('off')
+
     plt.tight_layout()
     plt.show()
-    plt.savefig(os.path.join(save_path, "attn_ts.png"))
+    # plt.savefig(os.path.join(save_path, "attn_ts.png"))
 
 
 if __name__ == '__main__':
@@ -56,7 +60,8 @@ if __name__ == '__main__':
         param.requires_grad = False
     teacher.eval()
 
-    student_path = './KD_Output/KD_modify_firstConv/KD_modify_firstConv.bin'
+    # student_path = './KD_Output/KD_modify_firstConv/KD_modify_firstConv.bin'
+    student_path = './KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin'
     student_model = get_student()
     student_model.load_state_dict(torch.load(student_path), strict=True)
     for param in student_model.parameters():
@@ -66,7 +71,8 @@ if __name__ == '__main__':
     age = 120
     gender = torch.zeros((1, 1), dtype=torch.float32)
     # image_path = '../RSNA/train/7038.png'
-    image_path = '../RSNA/valid/15504.png'
+    # image_path = '../RSNA/valid/15504.png'
+    image_path = '../Dataset/RSNA/valid/11632.png'
     # 读取和预处理图片
     img = Image.open(image_path).convert('L')
     img = RSNA_transform_val(img).unsqueeze(0)
@@ -80,5 +86,5 @@ if __name__ == '__main__':
         loss = age - (class_feature.cpu().item() * boneage_div + boneage_mean)
         print(loss)
     # 展示结果
-    visualize_attn_kd(t1, t2, t3, t4, s1, s2, s3, s4, "./")
+    visualize_attn_kd(img, t1, t2, t3, t4, s1, s2, s3, s4, "./")
     # visualize_attn_mask(t1, t2, t3, t4, s1, s2, s3, s4, img_teacher)

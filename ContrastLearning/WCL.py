@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 class WCL(nn.Module):
     """传入的特征必须是经过标准化后的特征"""
-    def __init__(self, p=0.5, tempS=0.2, thresholdS=0.02, tempW=0.2):
+    def __init__(self, p=0.5, tempS=1, thresholdS=0.1, tempW=0.2):
         super(WCL, self).__init__()
 
         # 设定计算分数的超参数
@@ -36,6 +36,7 @@ class WCL(nn.Module):
 
         score_matrix = torch.exp(-(torch.div(torch.abs(label_clone_1 - label_clone_2), self.tempS)).pow(self.p))
         score_matrix = score_matrix * (score_matrix >= self.thresholdS)
+        print(score_matrix)
         return score_matrix
 
     def count_distance_out(self, logit):

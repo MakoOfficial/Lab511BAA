@@ -5,19 +5,33 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 
 import torch
+
 torch.set_printoptions(sci_mode=False)
 
-data_dir = "E:/code/Dataset/RSNA_large"
+data_dir = "E:/code/Dataset/RSNA"
 
-#   valid_csv_large + valid_csv_correct = valid_csv_all
-# valid_csv_large = pd.read_csv(os.path.join(data_dir, "valid.csv"))
-valid_csv_all = pd.read_csv('../KD_All_Output/KD_modify_firstConv_RandomCrop/valid_loss.csv')
-# valid_csv_correct = pd.read_csv('../KD_All_Output/KD_modify_firstConv_RandomCrop/valid_loss_2.csv')
-#
-# valid_csv_large_loss = torch.zeros((2, 229), dtype=torch.float32)
-valid_csv_all_loss_male = torch.zeros((3, 229), dtype=torch.float32)
-valid_csv_all_loss_female = torch.zeros((3, 229), dtype=torch.float32)
-# valid_csv_correct_loss = torch.zeros((3, 229), dtype=torch.float32)
+valid_csv_Contrast = pd.read_csv('../KD_All_Output/KD_modify_firstConv_RandomCrop/对比效果.csv')
+valid_csv_KD = pd.read_csv(
+    '../KD_All_Output/KD_Res50_CBAM_BSPC_only_CLS_AVGPool_multiCls_pretrained_12-10/蒸馏效果NEW2.csv')
+valid_csv_Origin = pd.read_csv('../Student/baseline/未蒸馏.csv')
+
+valid_csv_Contrast_loss_male = torch.zeros((3, 229), dtype=torch.float32)
+valid_csv_Contrast_loss_female = torch.zeros((3, 229), dtype=torch.float32)
+
+valid_csv_KD_loss_male = torch.zeros((3, 229), dtype=torch.float32)
+valid_csv_KD_loss_female = torch.zeros((3, 229), dtype=torch.float32)
+
+valid_csv_Origin_loss_male = torch.zeros((3, 229), dtype=torch.float32)
+valid_csv_Origin_loss_female = torch.zeros((3, 229), dtype=torch.float32)
+
+valid_csv_Contrast_loss_male_by_month = torch.zeros((3, 20), dtype=torch.float32)
+valid_csv_Contrast_loss_female_by_month = torch.zeros((3, 20), dtype=torch.float32)
+
+valid_csv_KD_loss_male_by_month = torch.zeros((3, 20), dtype=torch.float32)
+valid_csv_KD_loss_female_by_month = torch.zeros((3, 20), dtype=torch.float32)
+
+valid_csv_Origin_loss_male_by_month = torch.zeros((3, 20), dtype=torch.float32)
+valid_csv_Origin_loss_female_by_month = torch.zeros((3, 20), dtype=torch.float32)
 
 
 def statistics_loss(df, loss_dict):
@@ -62,48 +76,10 @@ def statistics_loss_by_gender(df, loss_dict_male, loss_dict_female):
     return loss_dict_male, loss_dict_female
 
 
-# fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(36, 12))
-#
-# ax1, ax2, ax3, ax4 = axes.flatten()
-# ax1.bar(range(229), valid_csv_all_loss_male[2])
-# ax1.set_xlabel('label')
-# ax1.set_ylabel('MAE')
-# ax1.set_title('male valid result')
-# ax1.set_ylim(0, 40)
-# ax1.xaxis.set_major_locator(MultipleLocator(12))
-#
-# ax3.bar(range(229), valid_csv_all_loss_male[1])
-# ax3.set_xlabel('label')
-# ax3.set_ylabel('num')
-# ax3.set_title('male valid count')
-# ax3.xaxis.set_major_locator(MultipleLocator(12))
-#
-# ax2.bar(range(229), valid_csv_all_loss_female[2])
-# ax2.set_xlabel('label')
-# ax2.set_ylabel('MAE')
-# ax2.set_title('female valid result')
-# ax2.set_ylim(0, 40)
-# ax2.xaxis.set_major_locator(MultipleLocator(12))
-#
-# ax4.bar(range(229), valid_csv_all_loss_female[1])
-# ax4.set_xlabel('label')
-# ax4.set_ylabel('num')
-# ax4.set_title('female valid count')
-# ax4.xaxis.set_major_locator(MultipleLocator(12))
-#
-# # 调整布局
-# plt.tight_layout()
-#
-# # 显示图表
-# plt.show()
-
-#   ====================================================================================================
-
-valid_csv_all_loss_male_by_month = torch.zeros((3, 20), dtype=torch.float32)
-valid_csv_all_loss_female_by_month = torch.zeros((3, 20), dtype=torch.float32)
-
-
 def statistics_loss_by_month(df, loss_dict_male_by_month, loss_dict_female_by_month):
+    """
+    0:
+    """
     length = len(df)
     for i in range(length):
         row = df.iloc[i]
@@ -129,42 +105,198 @@ def statistics_loss_by_month(df, loss_dict_male_by_month, loss_dict_female_by_mo
     return loss_dict_male_by_month, loss_dict_female_by_month
 
 
-valid_csv_all_loss_male_by_month, valid_csv_all_loss_female_by_month = statistics_loss_by_month(valid_csv_all,
-                                                                                                valid_csv_all_loss_male_by_month,
-                                                                                                valid_csv_all_loss_female_by_month)
+def print_erros_map(male_by_month, female_by_month):
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(36, 12))
+
+    ax1, ax2, ax3, ax4 = axes.flatten()
+    ax1.bar(range(20), male_by_month[2])
+    ax1.set_xlabel('label')
+    ax1.set_ylabel('MAE')
+    ax1.set_title('male valid result')
+    ax1.set_ylim(0, 40)
+    ax1.xaxis.set_major_locator(MultipleLocator(1))
+
+    ax3.bar(range(20), male_by_month[1])
+    ax3.set_xlabel('label')
+    ax3.set_ylabel('num')
+    ax3.set_title('male valid count')
+    ax3.xaxis.set_major_locator(MultipleLocator(1))
+
+    ax2.bar(range(20), female_by_month[2])
+    ax2.set_xlabel('label')
+    ax2.set_ylabel('MAE')
+    ax2.set_title('female valid result')
+    ax2.set_ylim(0, 40)
+    ax2.xaxis.set_major_locator(MultipleLocator(1))
+
+    ax4.bar(range(20), female_by_month[1])
+    ax4.set_xlabel('label')
+    ax4.set_ylabel('num')
+    ax4.set_title('female valid count')
+    ax4.xaxis.set_major_locator(MultipleLocator(1))
+
+    # 调整布局
+    plt.tight_layout()
+
+    # 显示图表
+    plt.show()
 
 
-fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(36, 12))
+def print_predict_dot_map(df, title, save_path):
+    # 提取标签和预测值
+    labels_1 = torch.tensor(df[df['male'] == 1]['boneage'].values, dtype=torch.float32)
+    predictions_1 = torch.tensor(df[df['male'] == 1]['pred'].values, dtype=torch.float32)
+    labels_2 = torch.tensor(df[df['male'] == 0]['boneage'].values, dtype=torch.float32)
+    predictions_2 = torch.tensor(df[df['male'] == 0]['pred'].values, dtype=torch.float32)
 
-ax1, ax2, ax3, ax4 = axes.flatten()
-ax1.bar(range(20), valid_csv_all_loss_male_by_month[2])
-ax1.set_xlabel('label')
-ax1.set_ylabel('MAE')
-ax1.set_title('male valid result')
-ax1.set_ylim(0, 40)
-ax1.xaxis.set_major_locator(MultipleLocator(1))
+    # 创建一个新的图形
+    plt.figure(figsize=(8, 8))
 
-ax3.bar(range(20), valid_csv_all_loss_male_by_month[1])
-ax3.set_xlabel('label')
-ax3.set_ylabel('num')
-ax3.set_title('male valid count')
-ax3.xaxis.set_major_locator(MultipleLocator(1))
+    # 绘制 loss_1，使用蓝色三角形标记
+    plt.scatter(labels_1, predictions_1, color='blue', marker='^', label='male', s=10)
 
-ax2.bar(range(20), valid_csv_all_loss_female_by_month[2])
-ax2.set_xlabel('label')
-ax2.set_ylabel('MAE')
-ax2.set_title('female valid result')
-ax2.set_ylim(0, 40)
-ax2.xaxis.set_major_locator(MultipleLocator(1))
+    # 绘制 loss_2，使用红色圆形标记
+    plt.scatter(labels_2, predictions_2, color='red', marker='o', label='female', s=10)
 
-ax4.bar(range(20), valid_csv_all_loss_female_by_month[1])
-ax4.set_xlabel('label')
-ax4.set_ylabel('num')
-ax4.set_title('female valid count')
-ax4.xaxis.set_major_locator(MultipleLocator(1))
+    # 绘制 y=x 绿色直线
+    plt.plot([0, 228], [0, 228], color='green', linestyle='-', label='Actual Age')
 
-# 调整布局
-plt.tight_layout()
+    plt.xticks(np.arange(0, 229, 50))
+    plt.yticks(np.arange(0, 229, 50))
 
-# 显示图表
-plt.show()
+    # 设置坐标轴标签和标题
+    plt.xlabel('Grand Truth(Months)')
+    plt.ylabel('Predicted Age(Months)')
+    plt.title(f'Predicted Age vs Grand Truth for {title}')
+
+    # 显示图例
+    plt.legend()
+
+    # 显示图形
+    plt.grid(True)
+    plt.savefig(os.path.join(save_path, f"{title}_Predict.png"))
+    # plt.show()
+    plt.clf()
+    plt.close('all')
+
+
+def print_group_loss(df, title, save_path):
+    labels_1 = torch.tensor(df[df['male'] == 1]['boneage'].values, dtype=torch.float32).unsqueeze(1)
+    predictions_1 = torch.tensor(df[df['male'] == 1]['pred'].values, dtype=torch.float32).unsqueeze(1)
+
+    labels_2 = torch.tensor(df[df['male'] == 0]['boneage'].values, dtype=torch.float32).unsqueeze(1)
+    predictions_2 = torch.tensor(df[df['male'] == 0]['pred'].values, dtype=torch.float32).unsqueeze(1)
+
+    loss_1 = torch.cat((labels_1, predictions_1), dim=1)
+    loss_2 = torch.cat((labels_2, predictions_2), dim=1)
+
+    # 计算标签与预测值之间的绝对差值
+    abs_diff_1 = np.abs(loss_1[:, 0] - loss_1[:, 1])
+    abs_diff_2 = np.abs(loss_2[:, 0] - loss_2[:, 1])
+
+    # 定义标签范围
+    ranges_male = [
+        (0, 14),
+        (15, 36),
+        (37, 108),
+        (109, 168),
+        (169, 192),
+        (193, 228)
+    ]
+
+    ranges_female = [
+        (0, 10),
+        (11, 24),
+        (25, 84),
+        (85, 156),
+        (157, 180),
+        (181, 228)
+    ]
+
+    # 创建一个空字典来存储每组的平均绝对差值
+    grouped_diff_1 = []
+    grouped_diff_2 = []
+    grouped_diff_merged = []
+    group_labels = ["Infancy", "Toddlers", "Pre-puberty", "Early puberty", "Late Puberty", "Post-puberty"]
+
+    # 对每个范围内的标签进行分组
+    for i in range(6):
+        group_range_m = np.arange(ranges_male[i][0], ranges_male[i][1] + 1)
+        group_range_f = np.arange(ranges_female[i][0], ranges_female[i][1] + 1)
+
+        # 找到对应范围内的样本
+        mask_1 = np.isin(loss_1[:, 0], group_range_m)
+        mask_2 = np.isin(loss_2[:, 0], group_range_f)
+
+        male_loss = abs_diff_1[mask_1]
+        female_loss = abs_diff_2[mask_2]
+        male_len = len(male_loss)
+        female_len = len(female_loss)
+
+        # 计算每组的平均绝对差值
+        avg_diff_1 = male_loss.mean().item()
+        avg_diff_2 = female_loss.mean().item()
+        avg_diff_merged = ((male_loss.sum() + female_loss.sum()) / (male_len + female_len)).item()
+
+        # 存储每组的标签和差值
+        grouped_diff_1.append(avg_diff_1)
+        grouped_diff_2.append(avg_diff_2)
+        grouped_diff_merged.append(avg_diff_merged)
+
+    # 绘图
+    fig, ax = plt.subplots(figsize=(7, 6))
+
+    # 绘制柱状图
+    x_pos = np.arange(6)  # 横坐标的位置
+    bar_width = 0.25  # 每组柱子的宽度
+
+    # 绘制每组的差值
+    ax.bar(x_pos - bar_width, grouped_diff_1, bar_width, label='male', color='blue')
+    ax.bar(x_pos, grouped_diff_2, bar_width, label='female', color='orange')
+    ax.bar(x_pos + bar_width, grouped_diff_merged, bar_width, label='whole', color='green')
+
+    # 设置标签
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels(group_labels)
+    ax.set_ylabel('MAE(Months)')
+    ax.set_xlabel('Grand Truth(Months)')
+    ax.set_title(f'{title} Group MAE')
+    # ax.set_ylim(0, 18)
+    ax.legend()
+
+    # 显示图形
+    plt.tight_layout()
+    # plt.show()
+    plt.savefig(os.path.join(save_path, f"{title}_Group.png"))
+    plt.clf()
+    plt.close('all')
+
+
+if __name__ == '__main__':
+    save_dir = './'
+    #   对比损失
+    valid_csv_Contrast_loss_male_by_month, valid_csv_Contrast_loss_female_by_month = statistics_loss_by_month(
+        valid_csv_Contrast,
+        valid_csv_Contrast_loss_male_by_month,
+        valid_csv_Contrast_loss_female_by_month)
+
+    #   蒸馏损失
+    valid_csv_KD_loss_male_by_month, valid_csv_KD_loss_female_by_month = statistics_loss_by_month(
+        valid_csv_KD,
+        valid_csv_KD_loss_male_by_month,
+        valid_csv_KD_loss_female_by_month)
+
+    #   原始损失
+    valid_csv_Origin_loss_male_by_month, valid_csv_Origin_loss_female_by_month = statistics_loss_by_month(
+        valid_csv_Origin,
+        valid_csv_Origin_loss_male_by_month,
+        valid_csv_Origin_loss_female_by_month)
+
+    # print_erros_map(valid_csv_Origin_loss_male_by_month, valid_csv_Origin_loss_female_by_month)
+    print_predict_dot_map(valid_csv_Origin, title="Origin Result", save_path=save_dir)
+    print_predict_dot_map(valid_csv_KD, title="KD Result", save_path=save_dir)
+    print_predict_dot_map(valid_csv_Contrast, title="Contrast Learning Result", save_path=save_dir)
+
+    print_group_loss(valid_csv_Origin, title="Origin Result", save_path=save_dir)
+    print_group_loss(valid_csv_KD, title="KD Result", save_path=save_dir)
+    print_group_loss(valid_csv_Contrast, title="Contrast Learning Result", save_path=save_dir)

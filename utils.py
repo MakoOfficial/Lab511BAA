@@ -154,10 +154,10 @@ def log_valid_result_to_csv(id_list, boneage_list, male_list, pred_list, loss_li
     with open(log_file_path, mode='a', newline='') as file:
         writer = csv.writer(file)
         for i in range(length):
-            if loss_list[i].item() > 10:
-                writer.writerow([id_list[i].item(), boneage_list[i].item(),
-                                 male_list[i].item(), round(pred_list[i].item(), 2),
-                                 round(loss_list[i].item(), 2)])
+            # if loss_list[i].item() > 10:
+            writer.writerow([id_list[i].item(), boneage_list[i].item(),
+                             male_list[i].item(), round(pred_list[i].item(), 2),
+                             round(loss_list[i].item(), 2)])
 
 
 def save_attn_KD(t1, t2, t3, t4, s1, s2, s3, s4, save_path):
@@ -342,6 +342,40 @@ def save_attn_all(s3, s4, img_ids, save_path):
             axes[1].imshow(s4[i].squeeze().cpu().numpy(), cmap='viridis')
             axes[1].set_title("attn_s4")
             axes[1].axis('off')
+
+            plt.tight_layout()
+            plt.savefig(os.path.join(attn_path, save_name))
+
+            plt.clf()
+            plt.close('all')
+
+
+def save_attn_all_KD(s1, s2, s3, s4, img_ids, save_path):
+    attn_path = os.path.join(save_path, "attn_dir")
+    os.makedirs(attn_path, exist_ok=True)
+    with torch.no_grad():
+        img_num = len(s1)
+        num_cols = 4
+        for i in range(img_num):
+            """对于第i张图片"""
+            fig, axes = plt.subplots(1, num_cols, figsize=(15, 5))
+            save_name = f"{int(img_ids[i])}.png"
+
+            axes[0].imshow(s1[i].squeeze().cpu().numpy(), cmap='viridis')
+            axes[0].set_title("attn_s1")
+            axes[0].axis('off')
+
+            axes[1].imshow(s2[i].squeeze().cpu().numpy(), cmap='viridis')
+            axes[1].set_title("attn_s2")
+            axes[1].axis('off')
+
+            axes[2].imshow(s3[i].squeeze().cpu().numpy(), cmap='viridis')
+            axes[2].set_title("attn_s3")
+            axes[2].axis('off')
+
+            axes[3].imshow(s4[i].squeeze().cpu().numpy(), cmap='viridis')
+            axes[3].set_title("attn_s4")
+            axes[3].axis('off')
 
             plt.tight_layout()
             plt.savefig(os.path.join(attn_path, save_name))
