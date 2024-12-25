@@ -10,28 +10,11 @@ torch.set_printoptions(sci_mode=False)
 
 data_dir = "E:/code/Dataset/RSNA"
 
-valid_csv_Contrast = pd.read_csv('../KD_All_Output/KD_modify_firstConv_RandomCrop/对比效果.csv')
-valid_csv_KD = pd.read_csv(
-    '../KD_All_Output/KD_Res50_CBAM_BSPC_only_CLS_AVGPool_multiCls_pretrained_12-10/蒸馏效果NEW2.csv')
-valid_csv_Origin = pd.read_csv('../Student/baseline/未蒸馏.csv')
-
-valid_csv_Contrast_loss_male = torch.zeros((3, 229), dtype=torch.float32)
-valid_csv_Contrast_loss_female = torch.zeros((3, 229), dtype=torch.float32)
-
-valid_csv_KD_loss_male = torch.zeros((3, 229), dtype=torch.float32)
-valid_csv_KD_loss_female = torch.zeros((3, 229), dtype=torch.float32)
-
-valid_csv_Origin_loss_male = torch.zeros((3, 229), dtype=torch.float32)
-valid_csv_Origin_loss_female = torch.zeros((3, 229), dtype=torch.float32)
-
-valid_csv_Contrast_loss_male_by_month = torch.zeros((3, 20), dtype=torch.float32)
-valid_csv_Contrast_loss_female_by_month = torch.zeros((3, 20), dtype=torch.float32)
-
-valid_csv_KD_loss_male_by_month = torch.zeros((3, 20), dtype=torch.float32)
-valid_csv_KD_loss_female_by_month = torch.zeros((3, 20), dtype=torch.float32)
-
-valid_csv_Origin_loss_male_by_month = torch.zeros((3, 20), dtype=torch.float32)
-valid_csv_Origin_loss_female_by_month = torch.zeros((3, 20), dtype=torch.float32)
+csv_map = {
+    "Origin": "../Student/baseline/未蒸馏2.csv",
+    "KD": "../KD_All_Output/KD_Res18_3090/蒸馏结果4.04_new.csv",
+    "Contrast Learning": "../KD_All_Output/KD_modify_firstConv_RandomCrop/对比效果.csv"
+}
 
 
 def statistics_loss(df, loss_dict):
@@ -174,7 +157,7 @@ def print_predict_dot_map(df, title, save_path):
 
     # 显示图形
     plt.grid(True)
-    plt.savefig(os.path.join(save_path, f"{title}_Predict.png"))
+    plt.savefig(os.path.join(save_path, f"{title}_Predict.png"), dpi=800)
     # plt.show()
     plt.clf()
     plt.close('all')
@@ -261,42 +244,38 @@ def print_group_loss(df, title, save_path):
     ax.set_ylabel('MAE(Months)')
     ax.set_xlabel('Grand Truth(Months)')
     ax.set_title(f'{title} Group MAE')
-    # ax.set_ylim(0, 18)
+    ax.set_ylim(0, 18)
     ax.legend()
 
     # 显示图形
     plt.tight_layout()
     # plt.show()
-    plt.savefig(os.path.join(save_path, f"{title}_Group.png"))
+    plt.savefig(os.path.join(save_path, f"{title}_Group.png"), dpi=400)
     plt.clf()
     plt.close('all')
+
+
+def analysis_one_csv(csv_path, title, save_dir):
+    valid_csv = pd.read_csv(csv_path)
+
+    loss_male = torch.zeros((3, 229), dtype=torch.float32)
+    loss_female = torch.zeros((3, 229), dtype=torch.float32)
+
+    loss_male_by_month = torch.zeros((3, 20), dtype=torch.float32)
+    loss_female_by_month = torch.zeros((3, 20), dtype=torch.float32)
+
+    loss_male_by_month, loss_female_by_month = statistics_loss_by_month(
+        valid_csv,
+        loss_male_by_month,
+        loss_female_by_month)
+
+    print_predict_dot_map(valid_csv, title=f"{title} Result", save_path=save_dir)
+    print_group_loss(valid_csv, title=f"{title} Result", save_path=save_dir)
+
 
 
 if __name__ == '__main__':
     save_dir = './'
     #   对比损失
-    valid_csv_Contrast_loss_male_by_month, valid_csv_Contrast_loss_female_by_month = statistics_loss_by_month(
-        valid_csv_Contrast,
-        valid_csv_Contrast_loss_male_by_month,
-        valid_csv_Contrast_loss_female_by_month)
-
-    #   蒸馏损失
-    valid_csv_KD_loss_male_by_month, valid_csv_KD_loss_female_by_month = statistics_loss_by_month(
-        valid_csv_KD,
-        valid_csv_KD_loss_male_by_month,
-        valid_csv_KD_loss_female_by_month)
-
-    #   原始损失
-    valid_csv_Origin_loss_male_by_month, valid_csv_Origin_loss_female_by_month = statistics_loss_by_month(
-        valid_csv_Origin,
-        valid_csv_Origin_loss_male_by_month,
-        valid_csv_Origin_loss_female_by_month)
-
-    # print_erros_map(valid_csv_Origin_loss_male_by_month, valid_csv_Origin_loss_female_by_month)
-    print_predict_dot_map(valid_csv_Origin, title="Origin Result", save_path=save_dir)
-    print_predict_dot_map(valid_csv_KD, title="KD Result", save_path=save_dir)
-    print_predict_dot_map(valid_csv_Contrast, title="Contrast Learning Result", save_path=save_dir)
-
-    print_group_loss(valid_csv_Origin, title="Origin Result", save_path=save_dir)
-    print_group_loss(valid_csv_KD, title="KD Result", save_path=save_dir)
-    print_group_loss(valid_csv_Contrast, title="Contrast Learning Result", save_path=save_dir)
+    for key in csv_map.keys():
+        analysis_one_csv(csv_map[key], key, save_dir)

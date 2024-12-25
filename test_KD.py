@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 from datasets import RSNATestDataset, DHADataset
 from utils import log_valid_result_to_csv, save_attn_all
 
-from Student.student_model import get_student
+from Student.student_model import get_student, get_student_res18
 from Unet.UNets import get_Attn_Unet
 
 warnings.filterwarnings("ignore")
@@ -21,7 +21,8 @@ flags['data_dir'] = '../Dataset/RSNA'
 flags['DHA_dir'] = 'E:/code/Dataset/DHA/Digital Hand Atlas'
 flags['teacher_path'] = "./ckp/Unet/unet_segmentation_Attn_UNet.pth"
 # flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['student_path'] = "./Student/baseline/Res50_All.bin"
+# flags['student_path'] = "./Student/baseline/Res50_All.bin"
+flags['student_path'] = "./KD_All_Output/KD_Res18_3090/KD_Res18.bin"
 flags['csv_name'] = "All_Result.csv"
 flags['mask_option'] = False
 flags['DHA_option'] = False
@@ -89,7 +90,8 @@ if __name__ == "__main__":
     teacher.eval()
     #   prepare student model
     student_path = flags['student_path']
-    student_model = get_student().cuda()
+    # student_model = get_student().cuda()
+    student_model = get_student_res18().cuda()
     student_model.load_state_dict(torch.load(student_path), strict=True)
     for param in student_model.parameters():
         param.requires_grad = False

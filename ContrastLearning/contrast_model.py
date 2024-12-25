@@ -120,6 +120,57 @@ class CNNAttention(nn.Module):
         return attn * x, torch.flatten(avg_out, 1), attn
 
 
+class AdaA(nn.Module):
+    """输入为resnet的第3层和第4层输出，[B, 1024, 32, 32]，[B, 2048, 16, 16]
+        将cls_tokem的获取改为平均池化
+    """
+    def __init__(self, in_channels, attn_dim, in_size) -> None:
+        super().__init__()
+        self.in_channels = in_channels
+        self.attn_dim = attn_dim
+        self.scale = attn_dim ** -0.5
+        self.in_size = in_size
+
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        # self.max_pool = nn.AdaptiveMaxPool2d(1)
+
+        self.q = nn.Linear(in_channels+32, attn_dim, bias=False)
+        self.k = nn.Linear(in_channels+32, attn_dim, bias=False)
+        self.v = nn.Linear(in_channels+32, attn_dim, bias=False)
+        self.relu = nn.ReLU(inplace=True)
+        self.fc2 = nn.Conv2d(attn_dim, in_channels, 1, bias=False)
+        self.sigmoid = nn.Sigmoid()
+        self.norm = nn.LayerNorm(attn_dim)
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, x, gender_encode):
+        B, C, H, W = x.shape
+        cls_token = self.avg_pool(x)  # B C 1 1
+        cls_token = rearrange(cls_token, 'b d h w -> b (h w) d')    # B 1 C
+
+        feature_vector = rearrange(x, 'b d h w -> b (h w) d')
+
+        feature_total = torch.cat((cls_token, feature_vector), dim=1)   # B (HxW)+1 C
+        feature_total = torch.cat((feature_total, gender_encode), dim=-1)   # B (HxW)+1 C+32
+
+        q = self.norm(self.relu(self.q(feature_total)))   # B (HxW)+1 attn_dim
+        k = self.norm(self.relu(self.k(feature_total)))  # B (HxW)+1 attn_dim
+        v = self.norm(self.relu(self.v(feature_total)))  # B (HxW)+1 attn_dim
+
+        attn = torch.matmul(q, k.transpose(-1, -2))  # B (HxW)+1 (HxW)+1
+        attn = self.softmax(attn * self.scale)  # B (HxW)+1 (HxW)+1
+
+        feature_out = torch.matmul(attn, v) # B (HxW)+1 attn_dim
+
+        cls_token = feature_out[:, 0].reshape(B, -1, 1, 1)   # B, attn_dim, 1, 1
+
+        cls_token = self.fc2(cls_token) # B, in_channel, 1, 1
+
+        # max_out = self.fc2(self.relu1(self.fc1(self.max_pool(x))))
+        attn = rearrange(attn[:, 0, 1:], 'b (h w) -> b h w', h=self.in_size, w=self.in_size)    # B H W
+        return attn * x, torch.flatten(cls_token, 1), attn
+
+
 class CNNFeedForward(nn.Module):
     def __init__(self, dim, hidden_dim):
         super().__init__()
@@ -267,14 +318,14 @@ class Student_Contrast_Model(nn.Module):
         )
 
         self.cls_Embedding_0 = nn.Sequential(
-            nn.Linear(1024 + 32, 512),
+            nn.Linear(1024, 512),
             nn.ReLU(),
             # nn.BatchNorm1d(512),
             nn.Linear(512, 1024)
         )
 
         self.cls_Embedding_1 = nn.Sequential(
-            nn.Linear(2048 + 32, 512),
+            nn.Linear(2048, 512),
             nn.ReLU(),
             # nn.BatchNorm1d(512),
             nn.Linear(512, 1024)
@@ -291,8 +342,8 @@ class Student_Contrast_Model(nn.Module):
         x = torch.flatten(x, 1)
 
         x = torch.cat([x, gender_encode], dim=1)
-        cls_token2 = torch.cat([cls_token2, gender_encode], dim=1)
-        cls_token3 = torch.cat([cls_token3, gender_encode], dim=1)
+        # cls_token2 = torch.cat([cls_token2, gender_encode], dim=1)
+        # cls_token3 = torch.cat([cls_token3, gender_encode], dim=1)
 
         cls_token2 = F.normalize(self.cls_Embedding_0(cls_token2), dim=1)
         cls_token3 = F.normalize(self.cls_Embedding_1(cls_token3), dim=1)
@@ -342,17 +393,25 @@ def get_student_contrast_model(student_path):
 
 if __name__ == '__main__':
     contrast_model = getContrastModel(
-        "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin").cuda()
+        "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin")
     print(f"Contrast Model: {sum(p.nelement() for p in contrast_model.parameters() if p.requires_grad == True) / 1e6}M")
     # print(contrast_model)
 
-    student_GCN = get_student_GCN("../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin").cuda()
+    student_GCN = get_student_GCN("../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin")
     print(f"student_GCN Model: {sum(p.nelement() for p in student_GCN.parameters() if p.requires_grad == True) / 1e6}M")
     print(student_GCN)
+
+    student_Contrast = get_student_contrast_model(
+        "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin").cuda()
+    print(f"student_Contrast Model: {sum(p.nelement() for p in student_Contrast.parameters() if p.requires_grad == True) / 1e6}M")
+    print(student_Contrast)
 
     data = torch.rand(2, 1, 256, 256).cuda()
     gender = torch.ones((2, 1)).cuda()
 
     # output, cls_token0, token0_attn1, token0_attn2, cls_token1, token1_attn1, token1_attn2, attn0, attn1 = contrast_model(data, gender)
     # print(f"x: {output.shape}\ncls_token0: {cls_token0.shape}\ncls_token1: {cls_token1.shape}")
+
+    output, cls_token0, cls_token1, attn0, attn1, attn2, attn3 = student_Contrast(data, gender)
+    print(f"x: {output.shape}\ncls_token0: {cls_token0.shape}\ncls_token1: {cls_token1.shape}")
 
