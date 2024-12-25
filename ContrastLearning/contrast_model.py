@@ -298,9 +298,11 @@ class Student_Contrast_Model(nn.Module):
         self.freeze_params()
 
         self.backbone2 = backbone_res[6]
-        self.adj_learning0 = CNNAttention(1024, 768, 32)
+        # self.adj_learning0 = CNNAttention(1024, 768, 32)
+        self.adj_learning0 = AdaA(1024, 768, 32)
         self.backbone3 = backbone_res[7]
-        self.adj_learning1 = CNNAttention(2048, 768, 16)
+        # self.adj_learning1 = CNNAttention(2048, 768, 16)
+        self.adj_learning1 = AdaA(2048, 768, 16)
 
         self.gender_encoder = nn.Linear(1, 32)
         self.gender_bn = nn.BatchNorm1d(32)
