@@ -28,15 +28,15 @@ flags['num_epochs'] = 100
 flags['data_dir'] = '../archive'
 flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = '../../autodl-tmp/KD_All_Output_3090'
-flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_Res_pretrained_12-26'
-flags['node'] = '对比学习的注意力图模块添加残差模块'
+flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_pretrained_12-26'
+flags['node'] = '删除残差结构，并降低对比损失的比率，加大分类的效果'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
 flags['weight_decay'] = 0
 flags['best_loss'] = 0
-flags['triple_loss_0_lambda'] = 0.5
-flags['triple_loss_1_lambda'] = 0.5
+flags['triple_loss_0_lambda'] = 0.4
+flags['triple_loss_1_lambda'] = 0.4
 flags['WCL_setting'] = dict(p=0.5, tempS=1, thresholdS=0.1, tempW=0.2)
 
 

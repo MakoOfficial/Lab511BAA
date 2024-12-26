@@ -143,7 +143,7 @@ class AdaA(nn.Module):
         self.norm = nn.LayerNorm(attn_dim)
         self.softmax = nn.Softmax(dim=-1)
 
-        self.ffn = CNNFeedForward(in_channels, 2*in_channels)
+        # self.ffn = CNNFeedForward(in_channels, 2*in_channels)
 
     def forward(self, x, gender_encode):
         B, C, H, W = x.shape
@@ -172,7 +172,7 @@ class AdaA(nn.Module):
         # max_out = self.fc2(self.relu1(self.fc1(self.max_pool(x))))
         attn = rearrange(attn[:, 0, 1:], 'b (h w) -> b h w', h=self.in_size, w=self.in_size).unsqueeze(dim=1)    # B H W
 
-        return x + attn * x, torch.flatten(cls_token, 1), attn
+        return attn * x, torch.flatten(cls_token, 1), attn
 
 
 class CNNFeedForward(nn.Module):
