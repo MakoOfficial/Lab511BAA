@@ -143,6 +143,8 @@ class AdaA(nn.Module):
         self.norm = nn.LayerNorm(attn_dim)
         self.softmax = nn.Softmax(dim=-1)
 
+        self.ffn = CNNFeedForward(in_channels, 2*in_channels)
+
     def forward(self, x, gender_encode):
         B, C, H, W = x.shape
         cls_token = self.avg_pool(x)  # B C 1 1
@@ -151,6 +153,7 @@ class AdaA(nn.Module):
         feature_vector = rearrange(x, 'b d h w -> b (h w) d')
 
         feature_total = torch.cat((cls_token, feature_vector), dim=1)   # B (HxW)+1 C
+        gender_encode = gender_encode.unsqueeze(dim=1).repeat(1, (H*W)+1, 1)
         feature_total = torch.cat((feature_total, gender_encode), dim=-1)   # B (HxW)+1 C+32
 
         q = self.norm(self.relu(self.q(feature_total)))   # B (HxW)+1 attn_dim
@@ -167,8 +170,9 @@ class AdaA(nn.Module):
         cls_token = self.fc2(cls_token) # B, in_channel, 1, 1
 
         # max_out = self.fc2(self.relu1(self.fc1(self.max_pool(x))))
-        attn = rearrange(attn[:, 0, 1:], 'b (h w) -> b h w', h=self.in_size, w=self.in_size)    # B H W
-        return attn * x, torch.flatten(cls_token, 1), attn
+        attn = rearrange(attn[:, 0, 1:], 'b (h w) -> b h w', h=self.in_size, w=self.in_size).unsqueeze(dim=1)    # B H W
+
+        return x + attn * x, torch.flatten(cls_token, 1), attn
 
 
 class CNNFeedForward(nn.Module):
@@ -184,7 +188,7 @@ class CNNFeedForward(nn.Module):
         )
 
     def forward(self, x):
-        return self.net(x)
+        return x + self.net(x)
 
 
 class CNNViT(nn.Module):
@@ -337,8 +341,10 @@ class Student_Contrast_Model(nn.Module):
         gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender))) # B * 32
         x0, attn0 = self.attn0(self.backbone0(image))
         x1, attn1 = self.attn1(self.backbone1(x0))
-        x2, cls_token2, attn2 = self.adj_learning0(self.backbone2(x1))
-        x3, cls_token3, attn3 = self.adj_learning1(self.backbone3(x2))
+        # x2, cls_token2, attn2 = self.adj_learning0(self.backbone2(x1))
+        # x3, cls_token3, attn3 = self.adj_learning1(self.backbone3(x2))
+        x2, cls_token2, attn2 = self.adj_learning0(self.backbone2(x1), gender_encode)
+        x3, cls_token3, attn3 = self.adj_learning1(self.backbone3(x2), gender_encode)
 
         x = F.adaptive_avg_pool2d(x3, 1)
         x = torch.flatten(x, 1)

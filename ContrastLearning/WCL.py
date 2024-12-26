@@ -36,7 +36,7 @@ class WCL(nn.Module):
 
         score_matrix = torch.exp(-(torch.div(torch.abs(label_clone_1 - label_clone_2), self.tempS)).pow(self.p))
         score_matrix = score_matrix * (score_matrix >= self.thresholdS)
-        print(score_matrix)
+        # print(score_matrix)
         return score_matrix
 
     def count_distance_out(self, logit):
