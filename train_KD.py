@@ -13,10 +13,9 @@ from torch.utils.data import Dataset
 
 from datasets import RSNATrainDataset, RSNAValidDataset
 from utils import L1_penalty, log_losses_to_csv, save_attn_KD, \
-    attn_offset_kl_loss_firstStage, save_attn_Contrast, save_attn_6Stage
+    attn_offset_kl_loss_firstStage
 
 from Student.student_model import get_student, get_student_res18
-from ContrastLearning.contrast_model import get_student_GCN
 from Unet.UNets import get_Attn_Unet
 
 warnings.filterwarnings("ignore")
@@ -26,14 +25,13 @@ flags['lr'] = 5e-4
 flags['batch_size'] = 32
 flags['num_workers'] = 8
 flags['num_epochs'] = 100
-flags['data_dir'] = '../archive'
-flags['teacher_path'] = "../unet_segmentation_Attn_UNet_RSNA_256.pth"
-flags['backbone_path'] = "./KD_modify_firstConv_RandomCrop.bin"
-flags['save_path'] = './KD_All_Output_3090'
-flags['model_name'] = 'KD_Res50_CBAM_BSPC_only_CLS_AVGPool_multiCls_pretrained_12-10'
+flags['data_dir'] = 'C:/BoneAgeAssessment/RSNA'
+flags['teacher_path'] = "ckp/Unet/unet_segmentation_Attn_UNet.pth"
+flags['save_path'] = './Distillation_A5000'
+flags['model_name'] = 'KD_Res50_CBAM_12_28'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
-flags['lr_decay_ratio'] = 0.5
+flags['lr_decay_ratio'] = 0.8
 flags['weight_decay'] = 0
 flags['best_loss'] = 0
 flags['mask_option'] = False
@@ -78,27 +76,27 @@ def train_fn(train_loader, loss_fn, optimizer):
         # forward
         # firstly, get attention map from teacher model
         _, _, _, _, _, _, t1, t2, t3, t4 = teacher.forward_attention(image)
-        class_feature, cls_token2, cls_token3, s1, s2, _, _ = student_model(image, gender)
+        class_feature, s1, s2, s3, s4 = student_model(image, gender)
         y_pred = class_feature.squeeze()
-        y_pred_2 = cls_token2.squeeze()
-        y_pred_3 = cls_token3.squeeze()
         label = label.squeeze()
 
         loss = loss_fn(y_pred, label)
-        loss_2 = loss_fn(y_pred_2, label)
-        loss_3 = loss_fn(y_pred_3, label)
+        train_attn_loss = attn_offset_kl_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
 
         # backward,calculate gradients
         penalty_loss = L1_penalty(student_model, 1e-5)
-        total_loss = loss + penalty_loss + 1/2 * loss_2 + 1/2 * loss_3
+        total_loss = loss + penalty_loss + flags['attn_loss_ratio'] * train_attn_loss
         total_loss.backward()
 
         # backward,update parameter
         optimizer.step()
         batch_loss = loss.item()
-        print(f"batch_loss: {batch_loss}, loss_2: {loss_2.item()}, loss_3: {loss_3.item()}, penalty_loss: {penalty_loss.item()}")
+
+        batch_attn_loss = train_attn_loss.item()
+        print(f"batch_loss: {batch_loss}, batch_attn_loss: {batch_attn_loss}, penalty_loss: {penalty_loss.item()}")
 
         training_loss += batch_loss
+        attention_loss += batch_attn_loss
         total_size += batch_size
 
     return training_loss, attention_loss, total_size
@@ -108,8 +106,6 @@ def evaluate_fn(val_loader):
     student_model.eval()
 
     mae_loss = 0
-    mae_loss_2 = 0
-    mae_loss_3 = 0
     val_total_size = 0
     attn_loss = 0
     with torch.no_grad():
@@ -123,27 +119,21 @@ def evaluate_fn(val_loader):
             label = data[1].cuda()
 
             _, _, _, _, _, _, t1, t2, t3, t4 = teacher.forward_attention(image)
-            class_feature, cls_token2, cls_token3, s1, s2, s3, s4 = student_model(image, gender)
+            class_feature, s1, s2, s3, s4 = student_model(image, gender)
             y_pred = (class_feature * boneage_div) + boneage_mean  # 反归一化为原始标签
-            y_pred_2 = (cls_token2 * boneage_div) + boneage_mean  # 反归一化为原始标签
-            y_pred_3 = (cls_token3 * boneage_div) + boneage_mean  # 反归一化为原始标签
             y_pred = y_pred.squeeze()
-            y_pred_2 = y_pred_2.squeeze()
-            y_pred_3 = y_pred_3.squeeze()
             label = label.squeeze()
             batch_loss = F.l1_loss(y_pred, label, reduction='sum').item()
-            batch_loss_2 = F.l1_loss(y_pred_2, label, reduction='sum').item()
-            batch_loss_3 = F.l1_loss(y_pred_3, label, reduction='sum').item()
+            val_attn_loss = attn_offset_kl_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
+            batch_attn_loss = val_attn_loss.item()
 
             mae_loss += batch_loss
-            mae_loss_2 += batch_loss_2
-            mae_loss_3 += batch_loss_3
+            attn_loss += batch_attn_loss
 
             if batch_idx == len(val_loader) - 1:
                 save_attn_KD(t1[0], t2[0], t3[0], t4[0], s1[0], s2[0], s3[0], s4[0], save_path)
-                # save_attn_Contrast(t1[0], t2[0], t3[0], t4[0], s1[0], s2[0], s3, s4, save_path)
 
-    return mae_loss, attn_loss, val_total_size, mae_loss_2, mae_loss_3
+    return mae_loss, attn_loss, val_total_size
 
 
 def training_start(flags):
@@ -151,7 +141,7 @@ def training_start(flags):
     best_loss = float('inf')
     loss_fn = nn.L1Loss(reduction='sum')
 
-    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, student_model.parameters()), lr=flags['lr'], weight_decay=flags['weight_decay'])
+    optimizer = torch.optim.Adam(student_model.parameters(), lr=flags['lr'], weight_decay=flags['weight_decay'])
     scheduler = StepLR(optimizer, step_size=flags['lr_decay_step'], gamma=flags['lr_decay_ratio'])
 
     ## Trains
@@ -164,14 +154,10 @@ def training_start(flags):
 
         ## Evaluation
         # Sets net to eval and no grad context
-        valid_mae_loss, valid_attn_loss, val_total_size, mae_loss_2, mae_loss_3 = evaluate_fn(valid_loader)
+        valid_mae_loss, valid_attn_loss, val_total_size = evaluate_fn(valid_loader)
 
-        save_attn_6Stage(test_loader=test_loader, model=student_model, save_path=save_path)
-
-        # training_mean_loss, training_mean_attn_loss = training_loss / total_size, training_attn_loss / total_size
-        # valid_mean_mae, valid_mean_attn_loss = valid_mae_loss / val_total_size, valid_attn_loss / val_total_size
-        training_mean_loss, mae_loss_2_mean = training_loss / total_size, mae_loss_2 / val_total_size
-        valid_mean_mae, mae_loss_3_mean = valid_mae_loss / val_total_size, mae_loss_3 / val_total_size
+        training_mean_loss, training_mean_attn_loss = training_loss / total_size, training_attn_loss / total_size
+        valid_mean_mae, valid_mean_attn_loss = valid_mae_loss / val_total_size, valid_attn_loss / val_total_size
         if valid_mean_mae < best_loss:
             best_loss = valid_mean_mae
             torch.save(student_model.state_dict(), '/'.join([save_path, f'{model_name}.bin']))
@@ -182,8 +168,8 @@ def training_start(flags):
                     f.writelines(eachArg + ' : ' + str(value) + '\n')
                 f.writelines('------------------- end -------------------')
 
-        log_losses_to_csv(training_mean_loss, mae_loss_2_mean,
-                          valid_mean_mae, mae_loss_3_mean,
+        log_losses_to_csv(training_mean_loss, training_mean_attn_loss,
+                          valid_mean_mae, valid_mean_attn_loss,
                           time.time() - start_time,
                           optimizer.param_groups[0]["lr"], os.path.join(save_path, "KD_loss.csv"))
         scheduler.step()
@@ -204,9 +190,8 @@ if __name__ == "__main__":
         param.requires_grad = False
     teacher.eval()
     #   prepare student model
-    # student_model = get_student().cuda()
+    student_model = get_student().cuda()
     # student_model = get_student_res18().cuda()
-    student_model = get_student_GCN(backbone_path=flags['backbone_path']).cuda()
     #   load data setting
     data_dir = flags['data_dir']
 
@@ -215,11 +200,8 @@ if __name__ == "__main__":
 
     train_csv = os.path.join(data_dir, "train.csv")
     train_df = pd.read_csv(train_csv)
-    valid_csv = os.path.join(data_dir, "valid_new.csv")
+    valid_csv = os.path.join(data_dir, "valid.csv")
     valid_df = pd.read_csv(valid_csv)
-
-    test_csv = os.path.join(data_dir, "valid_test.csv")
-    test_df = pd.read_csv(test_csv)
 
     boneage_mean = train_df['boneage'].mean()
     boneage_div = train_df['boneage'].std()
@@ -229,8 +211,6 @@ if __name__ == "__main__":
 
     train_set = RSNATrainDataset(train_df, train_path, boneage_mean, boneage_div)
     valid_set = RSNAValidDataset(valid_df, valid_path, boneage_mean, boneage_div)
-    test_set = RSNAValidDataset(test_df, valid_path, boneage_mean, boneage_div)
-
     print(train_set.__len__())
 
     train_loader = torch.utils.data.DataLoader(
@@ -238,7 +218,7 @@ if __name__ == "__main__":
         batch_size=flags['batch_size'],
         shuffle=True,
         num_workers=flags['num_workers'],
-        drop_last=False,
+        drop_last=True,
         pin_memory=True,
     )
 
@@ -247,13 +227,6 @@ if __name__ == "__main__":
         batch_size=flags['batch_size'],
         shuffle=False,
         num_workers=flags['num_workers'],
-        pin_memory=True
-    )
-
-    test_loader = torch.utils.data.DataLoader(
-        test_set,
-        batch_size=12,
-        shuffle=False,
         pin_memory=True
     )
 

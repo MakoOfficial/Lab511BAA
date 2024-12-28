@@ -22,10 +22,10 @@ flags['data_dir'] = '../Dataset/RSNA'
 flags['DHA_dir'] = 'E:/code/Dataset/DHA/Digital Hand Atlas'
 flags['teacher_path'] = "./ckp/Unet/unet_segmentation_Attn_UNet.pth"
 flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['contrast_path'] = "./KD_All_Output/Contrast_WCL_IN_Res50_CBAM_AVGPool_AdaA_pretrained_12-25/Contrast_WCL_IN_Res50_CBAM_AVGPool_AdaA_pretrained_12-25.bin"
+flags['contrast_path'] = "./KD_All_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_DropLast_pretrained_12-26/Contrast_WCL_IN_CBAM_AVGPool_AdaA_DropLast_pretrained_12-26.bin"
 # flags['student_path'] = "./Student/baseline/Res50_All.bin"
 # flags['student_path'] = "./KD_All_Output/KD_Res18_3090/KD_Res18.bin"
-flags['csv_name'] = "kd.csv"
+flags['csv_name'] = "Contrast.csv"
 flags['mask_option'] = False
 flags['DHA_option'] = False
 
@@ -58,7 +58,7 @@ def evaluate_fn(val_loader):
             label = data[1].cuda()
 
             # _, _, _, _, _, _, t1, t2, t3, t4 = teacher.forward_attention(image)
-            class_feature, s1, s2, s3, s4 = student_model(image, gender)
+            class_feature, _, _, s1, s2, s3, s4 = student_model(image, gender)
             y_pred = (class_feature * boneage_div) + boneage_mean  # 反归一化为原始标签
 
             y_pred = y_pred.squeeze()
@@ -82,8 +82,8 @@ def evaluate_fn(val_loader):
 
 if __name__ == "__main__":
     # set save dir of this train
-    ckp_dir = os.path.dirname(flags['student_path'])
-    # ckp_dir = os.path.dirname(flags['contrast_path'])
+    # ckp_dir = os.path.dirname(flags['student_path'])
+    ckp_dir = os.path.dirname(flags['contrast_path'])
     #   prepare teacher model
     teacher_path = flags['teacher_path']
     teacher = get_Attn_Unet().cuda()
@@ -93,11 +93,11 @@ if __name__ == "__main__":
     teacher.eval()
     #   prepare student model
     student_path = flags['student_path']
-    student_model = get_student().cuda()
+    # student_model = get_student().cuda()
     # student_model = get_student_res18().cuda()
-    # student_model = get_student_contrast_model(student_path).cuda()
-    # contrast_path = flags['contrast_path']
-    student_model.load_state_dict(torch.load(student_path), strict=True)
+    student_model = get_student_contrast_model(student_path).cuda()
+    contrast_path = flags['contrast_path']
+    student_model.load_state_dict(torch.load(contrast_path), strict=True)
     for param in student_model.parameters():
         param.requires_grad = False
     student_model.eval()

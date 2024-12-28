@@ -22,7 +22,7 @@ flags['data_dir'] = '../../Dataset/RSNA'
 flags['DHA_dir'] = 'E:/code/Dataset/DHA/Digital Hand Atlas'
 flags['teacher_path'] = "../ckp/Unet/unet_segmentation_Attn_UNet.pth"
 flags['backbone_path'] = "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['model'] = "../KD_All_Output/KD_Res50_CBAM_BSPC_only_CLS_AVGPool_multiCls_pretrained_12-10/KD_Res50_CBAM_BSPC_only_CLS_AVGPool_multiCls_pretrained_12-10.bin"
+flags['model'] = "../KD_All_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_pretrained_DropLast_validNew_12-26/Contrast_WCL_IN_CBAM_AVGPool_AdaA_pretrained_DropLast_12-26.bin"
 flags['mask_option'] = False
 flags['csv_name'] = "Contrast_Result.csv"
 flags['DHA_option'] = False
@@ -104,8 +104,8 @@ if __name__ == "__main__":
     teacher.eval()
     #   prepare student model
     student_path = flags['model']
-    student_model = get_student_GCN(backbone_path=flags['backbone_path']).cuda()
-    # student_model = get_student_contrast_model(student_path=flags['backbone_path']).cuda()
+    # student_model = get_student_GCN(backbone_path=flags['backbone_path']).cuda()
+    student_model = get_student_contrast_model(student_path=flags['backbone_path']).cuda()
     student_model.load_state_dict(torch.load(student_path), strict=True)
     for param in student_model.parameters():
         param.requires_grad = False

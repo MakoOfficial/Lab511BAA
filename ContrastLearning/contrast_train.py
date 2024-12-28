@@ -209,7 +209,7 @@ if __name__ == "__main__":
 
     train_csv = os.path.join(data_dir, "train.csv")
     train_df = pd.read_csv(train_csv)
-    valid_csv = os.path.join(data_dir, "valid_new.csv")
+    valid_csv = os.path.join(data_dir, "valid.csv")
     valid_df = pd.read_csv(valid_csv)
 
     test_csv = os.path.join(data_dir, "valid_test.csv")
@@ -232,7 +232,7 @@ if __name__ == "__main__":
         batch_size=flags['batch_size'],
         shuffle=True,
         num_workers=flags['num_workers'],
-        drop_last=False,
+        drop_last=True,
         pin_memory=True,
     )
 
