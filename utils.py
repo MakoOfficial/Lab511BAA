@@ -197,6 +197,8 @@ def save_attn_KD(t1, t2, t3, t4, s1, s2, s3, s4, save_path):
 
     plt.tight_layout()
     plt.savefig(os.path.join(save_path, "attn_ts.png"))
+    plt.clf()
+    plt.close('all')
 
 
 def save_attn_Contrast(t1, t2, t3, t4, s1, s2, s3, s4, save_path):
@@ -245,8 +247,6 @@ def save_attn_Contrast(t1, t2, t3, t4, s1, s2, s3, s4, save_path):
     axes[1][4].imshow(s42.squeeze().cpu().numpy(), cmap='viridis')
     axes[1][4].set_title('s42')
     axes[1][4].axis('off')
-
-
 
     plt.tight_layout()
     plt.savefig(os.path.join(save_path, "attn_Contrast.png"))

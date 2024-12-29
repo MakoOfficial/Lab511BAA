@@ -97,6 +97,7 @@ if __name__ == '__main__':
     # 定义图像和标签的变换, 新增随机裁剪和旋转，效果更佳
     transform_train = transforms.Compose([
         transforms.RandomResizedCrop((800, 800), scale=(0.5, 1.0)),
+        transforms.RandomCrop((800, 800), ),
         transforms.RandomAffine(degrees=(10, 20), translate=(0.1, 0.2)),
         transforms.RandomHorizontalFlip(),
         transforms.Resize((256, 256)),
@@ -109,22 +110,22 @@ if __name__ == '__main__':
         # 如果需要的话，可以在这里添加归一化
     ])
     # 定义数据集路径
-    train_image_dir = '../../../ARAA/TSRS_RSNA-Articular-Surface/train/'
-    train_label_dir = '../../../ARAA/TSRS_RSNA-Articular-Surface/train_labels_gray/'
+    train_image_dir = 'C:/BoneAgeAssessment/ARAA/TSRS_RSNA-Articular-Surface/train'
+    train_label_dir = 'C:/BoneAgeAssessment/ARAA/TSRS_RSNA-Articular-Surface/train_labels_gray'
 
-    test_image_dir = '../../../ARAA/TSRS_RSNA-Articular-Surface/val'
-    test_label_dir = '../../../ARAA/TSRS_RSNA-Articular-Surface/val_labels_gray'
+    test_image_dir = 'C:/BoneAgeAssessment/ARAA/TSRS_RSNA-Articular-Surface/val'
+    test_label_dir = 'C:/BoneAgeAssessment/ARAA/TSRS_RSNA-Articular-Surface/val_labels_gray'
 
     # 装载数据，设定模型
     trainDataset = SegmentationDataset(train_image_dir, train_label_dir, transform=transform_train)
-    trainLoader = DataLoader(trainDataset, batch_size=16, shuffle=True, num_workers=2)
+    trainLoader = DataLoader(trainDataset, batch_size=24, shuffle=True, num_workers=2)
 
     testDataset = SegmentationDataset(test_image_dir, test_label_dir, transform=transform_val)
-    testLoader = DataLoader(testDataset, batch_size=16, shuffle=False, num_workers=2)
+    testLoader = DataLoader(testDataset, batch_size=24, shuffle=False, num_workers=2)
 
     segment_model = UNets.Attn_UNet(img_ch=1, output_ch=1).cuda()
-    model_save_path = 'ckp/Unet/'
+    model_save_path = './ckp/Unet/'
     os.makedirs(model_save_path, exist_ok=True)
-    model_save_name = "unet_segmentation_Attn_Unet_RSNA_256.pth"
+    model_save_name = "unet_segmentation_Attn_Unet_RSNA_256_Full_50epoch_3.pth"
 
     train(segment_model, trainLoader, testLoader, device=torch.device('cuda:0'), num_epoch=50, lr=1e-4)
