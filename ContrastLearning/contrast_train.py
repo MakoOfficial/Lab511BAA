@@ -14,7 +14,7 @@ from torch.utils.data import Dataset
 from datasets import RSNATrainDataset, RSNAValidDataset
 from utils import L1_penalty, log_contrast_losses_to_csv, save_attn_KD, save_contrast_attn_6Stage
 
-from ContrastLearning.contrast_model import get_student_contrast_model
+from ContrastLearning.contrast_model import get_student_contrast_model, get_only_contrast_model
 from ContrastLearning.triplet_loss import AdapitiveTripletLoss
 from ContrastLearning.WCL import WCL
 
@@ -200,7 +200,8 @@ if __name__ == "__main__":
     save_path = os.path.join(flags['save_path'], model_name)
     os.makedirs(save_path, exist_ok=True)
     #   prepare contrast learning model
-    contrast_model = get_student_contrast_model(student_path=flags['student_path']).cuda()
+    # contrast_model = get_student_contrast_model(student_path=flags['student_path']).cuda()
+    contrast_model = get_only_contrast_model().cuda()
     #   load data setting
     data_dir = flags['data_dir']
 

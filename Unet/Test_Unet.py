@@ -161,11 +161,10 @@ if __name__ == '__main__':
         # 如果需要的话，可以在这里添加归一化
     ])
     idx = 1
-    data_dir = "D:/BoneAgeAssessment/ARAA/TSRS_RSNA-Articular-Surface"
+    data_dir = "E:/code/EmperorQiu/data/TSRS_RSNA-Articular-Surface"
 
     test_image_dir = os.path.join(data_dir, 'val')
     test_label_dir = os.path.join(data_dir, 'val_labels_gray')
-    test_mask_dir = os.path.join(data_dir, 'valid_mask_resize')
 
     testDataset = SegmentationDataset(test_image_dir, test_label_dir, transform=transform_val)
 
