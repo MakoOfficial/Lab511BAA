@@ -25,11 +25,11 @@ flags['lr'] = 5e-4
 flags['batch_size'] = 32
 flags['num_workers'] = 8
 flags['num_epochs'] = 100
-flags['data_dir'] = '../archive'
+flags['data_dir'] = 'C:/BoneAgeAssessment/RSNA'
 flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['save_path'] = '../../autodl-tmp/KD_All_Output_3090'
-flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_pretrained_12-26'
-flags['node'] = '删除残差结构，并降低对比损失的比率，加大分类的效果'
+flags['save_path'] = '../KD_All_Output_A5000'
+flags['model_name'] = 'Only_Contrast_WCL_IN_CBAM_AVGPool_AdaA_pretrained_1_1'
+flags['node'] = '消融蒸馏模块，只使用对比学习'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
@@ -81,6 +81,7 @@ def train_fn(train_loader, loss_fn, triple_fn, optimizer):
         # forward
         # firstly, get attention map from teacher model
         class_feature, cls_token0, cls_token1, _, _, _, _ = contrast_model(image, gender)
+        # class_feature, _, _, _, _, _, _ = contrast_model(image, gender)
         y_pred = class_feature.squeeze()
         label = label.squeeze()
 
@@ -106,6 +107,8 @@ def train_fn(train_loader, loss_fn, triple_fn, optimizer):
         batch_loss = loss.item()
         print(f"batch_loss: {batch_loss}, WCL0: {triple_loss_0.item()}, WCL1: {triple_loss_1.item()}, "
               f"penalty_loss: {penalty_loss.item()}")
+        # print(f"batch_loss: {batch_loss}, "
+        #       f"penalty_loss: {penalty_loss.item()}")
 
         training_loss += batch_loss
         total_size += batch_size
@@ -131,6 +134,7 @@ def evaluate_fn(val_loader):
             label = data[1].cuda()
 
             class_feature, cls_token0, cls_token1, s1, s2, s3, s4 = contrast_model(image, gender)
+            # class_feature, _, _, s1, s2, s3, s4 = contrast_model(image, gender)
             y_pred = (class_feature * boneage_div) + boneage_mean  # 反归一化为原始标签
             y_pred = y_pred.squeeze()
             label = label.squeeze()
@@ -201,7 +205,7 @@ if __name__ == "__main__":
     os.makedirs(save_path, exist_ok=True)
     #   prepare contrast learning model
     # contrast_model = get_student_contrast_model(student_path=flags['student_path']).cuda()
-    contrast_model = get_only_contrast_model().cuda()
+    contrast_model = get_only_contrast_model(student_path=flags['student_path']).cuda()
     #   load data setting
     data_dir = flags['data_dir']
 

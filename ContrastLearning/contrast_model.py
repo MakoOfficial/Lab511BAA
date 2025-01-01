@@ -374,19 +374,20 @@ class Student_Contrast_Model(nn.Module):
 
 class Only_Contrast_Model(nn.Module):
     """只使用对比"""
-    def __init__(self, backbone):
+
+    def __init__(self, backbone, backbone_res):
         super(Only_Contrast_Model, self).__init__()
         # self.out_channels = out_channels
-        self.backbone0 = nn.Sequential(*backbone[0:5])
-        self.backbone0[0] = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.attn0 = CBAM(in_planes=256, ratio=8, kernel_size=3)
-        self.backbone1 = backbone[5]
-        self.attn1 = CBAM(in_planes=512, ratio=8, kernel_size=3)
+        self.backbone0 = backbone.backbone0
+        self.attn0 = backbone.attn0
+        self.backbone1 = backbone.backbone1
+        self.attn1 = backbone.attn1
+        self.freeze_params()
 
-        self.backbone2 = backbone[6]
+        self.backbone2 = backbone_res[6]
         # self.adj_learning0 = CNNAttention(1024, 768, 32)
         self.adj_learning0 = AdaA(1024, 768, 32)
-        self.backbone3 = backbone[7]
+        self.backbone3 = backbone_res[7]
         # self.adj_learning1 = CNNAttention(2048, 768, 16)
         self.adj_learning1 = AdaA(2048, 768, 16)
 
@@ -423,6 +424,8 @@ class Only_Contrast_Model(nn.Module):
         gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender))) # B * 32
         x0, attn0 = self.attn0(self.backbone0(image))
         x1, attn1 = self.attn1(self.backbone1(x0))
+        # x2 = self.backbone2(x1)
+        # x3 = self.backbone3(x2)
         x2, cls_token2, attn2 = self.adj_learning0(self.backbone2(x1), gender_encode)
         x3, cls_token3, attn3 = self.adj_learning1(self.backbone3(x2), gender_encode)
 
@@ -437,6 +440,7 @@ class Only_Contrast_Model(nn.Module):
         x = self.fc(x)
 
         return x, cls_token2, cls_token3, attn0, attn1, attn2, attn3
+        # return x, 0, 0, attn0, attn1, attn0, attn1
 
 
 def getContrastModel(student_path):
@@ -467,10 +471,14 @@ def get_student_contrast_model(student_path):
     return Student_Contrast_Model(backbone, resnet)
 
 
-def get_only_contrast_model():
+def get_only_contrast_model(student_path):
+    backbone = get_student()
+    if student_path is not None:
+        backbone.load_state_dict(torch.load(student_path))
+
     resnet, output_channels = get_pretrained_resnet50(True)
 
-    return Only_Contrast_Model(resnet)
+    return Only_Contrast_Model(backbone, resnet)
 
 
 if __name__ == '__main__':
