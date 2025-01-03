@@ -13,7 +13,7 @@ from torch.utils.data import Dataset
 
 from datasets import RSNATrainDataset, RSNAValidDataset
 from utils import L1_penalty, log_losses_to_csv, save_attn_KD, \
-    attn_offset_kl_loss_firstStage
+    attn_offset_kl_loss_firstStage, attn_offset_mse_loss_firstStage
 
 from Student.student_model import get_student, get_student_res18
 from Unet.UNets import get_Attn_Unet
@@ -28,13 +28,15 @@ flags['num_epochs'] = 100
 flags['data_dir'] = 'C:/BoneAgeAssessment/RSNA'
 flags['teacher_path'] = "ckp/Unet/unet_segmentation_Attn_UNet.pth"
 flags['save_path'] = './Distillation_A5000'
-flags['model_name'] = 'KD_Res50_CBAM_12_28'
+flags['note'] = '蒸馏模块消融，蒸馏目标和损失'
+flags['model_name'] = 'KD_Distillation_KD_Module_Attn_KL_4K_1_3'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.8
 flags['weight_decay'] = 0
 flags['best_loss'] = 0
 flags['mask_option'] = False
+# flags['attn_loss_ratio'] = 0.0005
 flags['attn_loss_ratio'] = 40
 
 seed = flags['seed']
@@ -82,6 +84,7 @@ def train_fn(train_loader, loss_fn, optimizer):
 
         loss = loss_fn(y_pred, label)
         train_attn_loss = attn_offset_kl_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
+        # train_attn_loss = attn_offset_mse_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
 
         # backward,calculate gradients
         penalty_loss = L1_penalty(student_model, 1e-5)
@@ -125,6 +128,7 @@ def evaluate_fn(val_loader):
             label = label.squeeze()
             batch_loss = F.l1_loss(y_pred, label, reduction='sum').item()
             val_attn_loss = attn_offset_kl_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
+            # val_attn_loss = attn_offset_mse_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
             batch_attn_loss = val_attn_loss.item()
 
             mae_loss += batch_loss
@@ -198,7 +202,8 @@ if __name__ == "__main__":
     train_path = os.path.join(data_dir, "train")
     valid_path = os.path.join(data_dir, "valid")
 
-    train_csv = os.path.join(data_dir, "train.csv")
+    train_csv = os.path.join(data_dir, "train_4K.csv")
+    # train_csv = os.path.join(data_dir, "train.csv")
     train_df = pd.read_csv(train_csv)
     valid_csv = os.path.join(data_dir, "valid.csv")
     valid_df = pd.read_csv(valid_csv)

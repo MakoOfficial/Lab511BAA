@@ -435,6 +435,15 @@ def attn_offset_kl_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4):
 
     return KL_loss(t2, s1) + KL_loss(t3, s2)
 
+def attn_offset_mse_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4):
+    """compute the MSE loss between teacher attn and student attn with first stage changed
+        t2 -> s1,   t3 -> s2
+    """
+    assert s1.shape == t2.shape
+    assert s2.shape == t3.shape
+
+    return F.mse_loss(t2, s1, reduction="sum") + F.mse_loss(t3, s2, reduction="sum")
+
 
 def attn_masked_kl_loss(t1, t2, t3, t4, s1, s2, s3, s4, xt):
     """compute the KD loss between teacher attn and student attn with masked

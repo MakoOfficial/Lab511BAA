@@ -10,10 +10,16 @@ torch.set_printoptions(sci_mode=False)
 
 data_dir = "E:/code/Dataset/RSNA"
 
+# csv_map = {
+#     "Origin": "../Student/baseline/未蒸馏2.csv",
+#     "KD": "../KD_All_Output/KD_Res18_3090/蒸馏结果4.04_new.csv",
+#     "Contrast Learning": "../KD_All_Output/KD_modify_firstConv_RandomCrop/对比效果.csv"
+# }
+
 csv_map = {
-    "Origin": "../Student/baseline/未蒸馏2.csv",
-    "KD": "../KD_All_Output/KD_Res18_3090/蒸馏结果4.04_new.csv",
-    "Contrast Learning": "../KD_All_Output/KD_modify_firstConv_RandomCrop/对比效果.csv"
+    "Origin": '../Result_csv/original/new/未蒸馏5.17.csv',
+    "KD": '../Result_csv/original/new/蒸馏Res50_4.39.csv',
+    "Contrast Learning": '../Result_csv/original/new/Contrast_3.86.csv'
 }
 
 
@@ -244,7 +250,7 @@ def print_group_loss(df, title, save_path):
     ax.set_ylabel('MAE(Months)')
     ax.set_xlabel('Grand Truth(Months)')
     ax.set_title(f'{title} Group MAE')
-    ax.set_ylim(0, 18)
+    ax.set_ylim(0, 15)
     ax.legend()
 
     # 显示图形
