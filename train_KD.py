@@ -13,7 +13,8 @@ from torch.utils.data import Dataset
 
 from datasets import RSNATrainDataset, RSNAValidDataset
 from utils import L1_penalty, log_losses_to_csv, save_attn_KD, \
-    attn_offset_kl_loss_firstStage, attn_offset_mse_loss_firstStage, attn_kl_loss_singleStage_ablation
+    attn_offset_kl_loss_firstStage, attn_offset_mse_loss_firstStage, attn_kl_loss_singleStage_ablation, \
+    label_distribute, scale_loss
 
 from Student.student_model import get_student, get_student_res18
 from Unet.UNets import get_Attn_Unet
@@ -25,11 +26,11 @@ flags['lr'] = 5e-4
 flags['batch_size'] = 32
 flags['num_workers'] = 8
 flags['num_epochs'] = 100
-flags['data_dir'] = 'C:/BoneAgeAssessment/RSNA'
-flags['teacher_path'] = "ckp/Unet/unet_segmentation_Attn_UNet.pth"
+flags['data_dir'] = '../archive'
+flags['teacher_path'] = "../unet_segmentation_Attn_UNet_RSNA_256.pth"
 flags['save_path'] = '../../autodl-tmp/KD_All_Output_3090'
 flags['node'] = '重新重新训练蒸馏模块'
-flags['model_name'] = 'KD_Distillation_Merge_1_4'
+flags['model_name'] = 'KD_Distillation_Merge_LossScale_1_5'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.8
@@ -83,6 +84,9 @@ def train_fn(train_loader, loss_fn, optimizer):
         label = label.squeeze()
 
         loss = loss_fn(y_pred, label)
+        scale_param = scale_loss(label, gender, male_scale, female_scale)
+        loss = scale_param * loss
+
         train_attn_loss = attn_offset_kl_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
         # train_attn_loss = attn_offset_mse_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
         # train_attn_loss = attn_kl_loss_singleStage_ablation(t2, s2)
@@ -238,5 +242,8 @@ if __name__ == "__main__":
         num_workers=flags['num_workers'],
         pin_memory=True
     )
+
+    # 添加给每个分类的样本增加权重
+    male_scale, female_scale = label_distribute(train_df)
 
     training_start(flags)

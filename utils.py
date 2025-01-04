@@ -17,6 +17,23 @@ stage6_boneage = [14, 12,
 
 stage6_gender = [0, 1]
 
+ranges_male = [
+    (0, 14),
+    (15, 36),
+    (37, 108),
+    (109, 168),
+    (169, 192),
+    (193, 228)
+]
+
+ranges_female = [
+    (0, 10),
+    (11, 24),
+    (25, 84),
+    (85, 156),
+    (157, 180),
+    (181, 228)
+]
 
 def iou(input, target, classes=1):
     """  compute the value of iou
@@ -518,13 +535,59 @@ def attn_masked_offset_kl_loss(t1, t2, t3, t4, s1, s2, s3, s4, xt):
     return KL_loss(t2_masked, s1_masked) + KL_loss(t3_masked, s2_masked)
 
 def label_distribute(df):
-    label_counts = df['boneage'].value_counts()
-    return label_counts
+    male_data = df[df['male'] == 1]
+    female_data = df[df['male'] == 0]
+
+    male_vector = torch.zeros(228, dtype=torch.int)
+    female_vector = torch.zeros(228, dtype=torch.int)
+
+    for lower, upper in ranges_male:
+        # 统计当前范围的样本数量
+        count = male_data[(male_data['boneage'] >= lower) & (male_data['boneage'] <= upper)].shape[0]
+
+        # 将该组的样本数量赋值给属于该组范围的 vector 索引
+        male_vector[lower:upper + 1] = count
+
+    for lower, upper in ranges_female:
+        # 统计当前范围的样本数量
+        count_ = female_data[(female_data['boneage'] >= lower) & (female_data['boneage'] <= upper)].shape[0]
+
+        # 将该组的样本数量赋值给属于该组范围的 vector 索引
+        female_vector[lower:upper + 1] = count_
+    male_max = torch.max(male_vector)
+    female_max = torch.max(female_vector)
+
+    male_vector = male_max / male_vector
+    female_vector = female_max / female_vector
+
+    # male_vector, female_vector = F.sigmoid(male_vector), F.sigmoid(female_vector)
+    #
+    # male_min = torch.min(male_vector)
+    # female_min = torch.min(female_vector)
+    #
+    # male_vector = male_vector / male_min
+    # female_vector = female_vector / female_min
+
+    return torch.sqrt(male_vector), torch.sqrt(female_vector)
 
 
-# def scale_loss(pred, label, label_count):
-import pandas as pd
-if __name__ == '__main__':
-    train_csv = "./KD_All_Output/KD_modify_firstConv_RandomCrop/valid_loss.csv"
-    train_df = pd.read_csv(train_csv)
-    print(label_distribute(train_df))
+def scale_loss(label, male, male_distribute, female_distribute):
+
+    label = label.view(-1).type(torch.LongTensor)
+    male = male.view(-1)
+    param = male * male_distribute[label] + (1 - male) * female_distribute[label]
+
+    return param
+
+# import pandas as pd
+# if __name__ == '__main__':
+#     train_csv = "E:/code/Dataset/RSNA/train_merge.csv"
+#     train_df = pd.read_csv(train_csv)
+#     label_male, label_female = label_distribute(train_df)
+#     print(label_male)
+#     print(label_female)
+#     loss = torch.ones((8), dtype=torch.float32)
+#     label = torch.tensor([1, 48, 108, 192, 1, 36, 156, 192], dtype=torch.float32)
+#     male = torch.tensor([1, 1, 1, 1, 0, 0, 0, 0])
+#     print(scale_loss(loss, label, male, label_male, label_female))
+
