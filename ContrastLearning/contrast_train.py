@@ -25,9 +25,9 @@ flags['lr'] = 5e-4
 flags['batch_size'] = 32
 flags['num_workers'] = 8
 flags['num_epochs'] = 100
-flags['data_dir'] = 'C:/BoneAgeAssessment/RSNA'
+flags['data_dir'] = '../archive'
 flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['save_path'] = '../KD_All_Output_3090'
+flags['save_path'] = '../../autodl-tmp/KD_All_Output_3090'
 flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_modifyParamWCL_1_4'
 flags['node'] = '调整对比超参数'
 flags['seed'] = 1
@@ -204,8 +204,8 @@ if __name__ == "__main__":
     save_path = os.path.join(flags['save_path'], model_name)
     os.makedirs(save_path, exist_ok=True)
     #   prepare contrast learning model
-    # contrast_model = get_student_contrast_model(student_path=flags['student_path']).cuda()
-    contrast_model = get_only_contrast_model(student_path=flags['student_path']).cuda()
+    contrast_model = get_student_contrast_model(student_path=flags['student_path']).cuda()
+    # contrast_model = get_only_contrast_model(student_path=flags['student_path']).cuda()
     #   load data setting
     data_dir = flags['data_dir']
 

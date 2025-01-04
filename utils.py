@@ -416,6 +416,14 @@ def attn_kl_loss_ablation(t1, t2, s1, s2):
     return KL_loss(t1, s1) + KL_loss(t2, s2)
 
 
+def attn_kl_loss_singleStage_ablation(t, s):
+    """compute the KD loss between teacher attn and student attn
+        t -> s
+    """
+    t = F.interpolate(t, size=(s.shape[-2], s.shape[-1]), mode='nearest')
+
+    return KL_loss(t, s)
+
 def attn_offset_kl_loss(t1, t2, t3, t4, s1, s2, s3, s4):
     """compute the KD loss between teacher attn and student attn
         t2 -> s1,   t3 -> s2

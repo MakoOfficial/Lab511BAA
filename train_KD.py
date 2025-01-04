@@ -13,7 +13,7 @@ from torch.utils.data import Dataset
 
 from datasets import RSNATrainDataset, RSNAValidDataset
 from utils import L1_penalty, log_losses_to_csv, save_attn_KD, \
-    attn_offset_kl_loss_firstStage, attn_offset_mse_loss_firstStage
+    attn_offset_kl_loss_firstStage, attn_offset_mse_loss_firstStage, attn_kl_loss_singleStage_ablation
 
 from Student.student_model import get_student, get_student_res18
 from Unet.UNets import get_Attn_Unet
@@ -28,8 +28,8 @@ flags['num_epochs'] = 100
 flags['data_dir'] = 'C:/BoneAgeAssessment/RSNA'
 flags['teacher_path'] = "ckp/Unet/unet_segmentation_Attn_UNet.pth"
 flags['save_path'] = './Distillation_A5000'
-flags['note'] = '蒸馏模块消融，蒸馏目标和损失'
-flags['model_name'] = 'KD_Distillation_KD_Module_Attn_KL_4K_1_3'
+flags['note'] = '蒸馏模块消融，蒸馏层数，只对齐一层'
+flags['model_name'] = 'KD_Distillation_KD_Module_Attn_KL_4K_SingleStage_t2_s2_1_4'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.8
@@ -83,8 +83,9 @@ def train_fn(train_loader, loss_fn, optimizer):
         label = label.squeeze()
 
         loss = loss_fn(y_pred, label)
-        train_attn_loss = attn_offset_kl_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
+        # train_attn_loss = attn_offset_kl_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
         # train_attn_loss = attn_offset_mse_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
+        train_attn_loss = attn_kl_loss_singleStage_ablation(t2, s2)
 
         # backward,calculate gradients
         penalty_loss = L1_penalty(student_model, 1e-5)
@@ -127,8 +128,9 @@ def evaluate_fn(val_loader):
             y_pred = y_pred.squeeze()
             label = label.squeeze()
             batch_loss = F.l1_loss(y_pred, label, reduction='sum').item()
-            val_attn_loss = attn_offset_kl_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
+            # val_attn_loss = attn_offset_kl_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
             # val_attn_loss = attn_offset_mse_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
+            val_attn_loss = attn_kl_loss_singleStage_ablation(t2, s2)
             batch_attn_loss = val_attn_loss.item()
 
             mae_loss += batch_loss
