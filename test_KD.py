@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 
 from datasets import RSNATestDataset, DHADataset
-from utils import log_valid_result_to_csv, save_attn_all, save_attn_all_KD
+from utils import log_valid_result_to_csv, save_attn_all, save_attn_all_KD, log_valid_result_logits_to_csv
 
 from Student.student_model import get_student, get_student_res18
 from ContrastLearning.contrast_model import get_student_contrast_model
@@ -58,7 +58,7 @@ def evaluate_fn(val_loader):
             label = data[1].cuda()
 
             # _, _, _, _, _, _, t1, t2, t3, t4 = teacher.forward_attention(image)
-            class_feature, _, _, s1, s2, s3, s4 = student_model(image, gender)
+            class_feature, _, _, s1, s2, s3, s4, logits = student_model(image, gender)
             y_pred = (class_feature * boneage_div) + boneage_mean  # 反归一化为原始标签
 
             y_pred = y_pred.squeeze()
@@ -66,13 +66,15 @@ def evaluate_fn(val_loader):
 
             # label_expand = expand_and_add_indices(label)
             # y_pred = y_pred.unsqueeze(1).repeat(1, 13)
-
             batch_loss = F.l1_loss(y_pred, label, reduction='none')
             # mae_loss += batch_loss.sum(dim=0)
             mae_loss += batch_loss.sum().item()
+            logits_list = torch.norm(logits, p=2, dim=1)
+
             # print(mae_loss)
 
-            log_valid_result_to_csv(id, label.cpu(), gender.cpu(), y_pred.cpu(), batch_loss.cpu(), log_path)
+            # log_valid_result_to_csv(id, label.cpu(), gender.cpu(), y_pred.cpu(), batch_loss.cpu(), log_path)
+            log_valid_result_logits_to_csv(id, label.cpu(), gender.cpu(), y_pred.cpu(), batch_loss.cpu(), logits_list.cpu(), log_path)
             # save_attn_all_KD(s1, s2, s3, s4, id, ckp_dir)
     mae_loss = mae_loss / val_total_size
     # best_idx = torch.argmin(mae_loss)

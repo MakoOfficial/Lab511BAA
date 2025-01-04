@@ -14,7 +14,7 @@ from torch.utils.data import Dataset
 from datasets import RSNATrainDataset, RSNAValidDataset
 from utils import L1_penalty, log_contrast_losses_to_csv, save_attn_KD, save_contrast_attn_6Stage
 
-from ContrastLearning.contrast_model import get_student_contrast_model, get_only_contrast_model
+from ContrastLearning.contrast_model import get_student_contrast_model
 from ContrastLearning.triplet_loss import AdapitiveTripletLoss
 from ContrastLearning.WCL import WCL
 
@@ -212,9 +212,11 @@ if __name__ == "__main__":
     data_dir = flags['data_dir']
 
     train_path = os.path.join(data_dir, "train")
+    # train_path = "../../autodl-tmp/archive/train"
     valid_path = os.path.join(data_dir, "valid")
 
     train_csv = os.path.join(data_dir, "train.csv")
+    # train_csv = "../../autodl-tmp/archive/train.csv"
     train_df = pd.read_csv(train_csv)
     valid_csv = os.path.join(data_dir, "valid.csv")
     valid_df = pd.read_csv(valid_csv)

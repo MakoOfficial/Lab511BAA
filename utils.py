@@ -6,7 +6,7 @@ import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
 from PIL import Image
-
+from collections import Counter
 
 stage6_boneage = [14, 12,
                   24, 24,
@@ -158,6 +158,27 @@ def log_valid_result_to_csv(id_list, boneage_list, male_list, pred_list, loss_li
             writer.writerow([id_list[i].item(), boneage_list[i].item(),
                              male_list[i].item(), round(pred_list[i].item(), 2),
                              round(loss_list[i].item(), 2)])
+
+
+def log_valid_result_logits_to_csv(id_list, boneage_list, male_list, pred_list, loss_list, logits_list, log_file_path):
+    length = len(id_list)
+    # 确保目标文件夹存在
+    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+
+    # 如果文件不存在，则创建并写入表头
+    if not os.path.exists(log_file_path):
+        with open(log_file_path, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["id", "boneage", "male", "pred", "loss", "logits"])
+
+    # 追加写入损失值
+    with open(log_file_path, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        for i in range(length):
+            # if loss_list[i].item() > 10:
+            writer.writerow([id_list[i].item(), boneage_list[i].item(),
+                             male_list[i].item(), round(pred_list[i].item(), 2),
+                             round(loss_list[i].item(), 2), logits_list[i].item()])
 
 
 def save_attn_KD(t1, t2, t3, t4, s1, s2, s3, s4, save_path):
@@ -495,3 +516,25 @@ def attn_masked_offset_kl_loss(t1, t2, t3, t4, s1, s2, s3, s4, xt):
     s2_masked = s2 + t3_mask
 
     return KL_loss(t2_masked, s1_masked) + KL_loss(t3_masked, s2_masked)
+
+def label_distribute(df):
+    label_counts = df['boneage'].value_counts()
+    return label_counts
+
+
+# def scale_loss(pred, label, label_count):
+import pandas as pd
+if __name__ == '__main__':
+
+    valid_data = torch.load(os.path.join(filepath, "valid_features.pt"))
+    valid_labels = torch.load(os.path.join(filepath, "valid_labels.pt"))
+    # 假设你的特征矩阵为 features，形状为 [B, C]
+    features = torch.tensor([[1, 2, 3],
+                             [4, 5, 6],
+                             [7, 8, 9]], dtype=torch.float32)
+
+    # 计算每个样本的 L2 范数
+    l2_norms = torch.norm(features, p=2, dim=1)
+
+    # 打印结果
+    print("L2 norms:", l2_norms)
