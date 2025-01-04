@@ -402,16 +402,18 @@ def attn_loss(t1, t2, t3, t4, s1, s2, s3, s4):
     return F.mse_loss(t1, s1) + F.mse_loss(t2, s2) + F.mse_loss(t3, s3) + F.mse_loss(t4, s4)
 
 
-def attn_kl_loss(t1, t2, t3, t4, s1, s2, s3, s4):
+def attn_kl_loss_ablation(t1, t2, s1, s2):
     """compute the KD loss between teacher attn and student attn
-        t2 -> s2, t3 -> s3
+        t1 -> s1, t2 -> s2
     """
     # s1 = nn.functional.upsample_nearest(s1, scale_factor=4)
-    s2 = F.interpolate(s2, size=(t2.shape[-2], t2.shape[-1]), mode='nearest')
-    s3 = F.interpolate(s3, size=(t3.shape[-2], t3.shape[-1]), mode='nearest')
+    # s1 = F.interpolate(s1, size=(t1.shape[-2], t1.shape[-1]), mode='nearest')
+    # s2 = F.interpolate(s2, size=(t2.shape[-2], t2.shape[-1]), mode='nearest')
+    t1 = F.interpolate(t1, size=(s1.shape[-2], s1.shape[-1]), mode='nearest')
+    t2 = F.interpolate(t2, size=(s2.shape[-2], s2.shape[-1]), mode='nearest')
     # s4 = nn.functional.upsample_nearest(s4, scale_factor=4)
 
-    return KL_loss(t2, s2) + KL_loss(t3, s3)
+    return KL_loss(t1, s1) + KL_loss(t2, s2)
 
 
 def attn_offset_kl_loss(t1, t2, t3, t4, s1, s2, s3, s4):

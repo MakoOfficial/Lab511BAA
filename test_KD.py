@@ -22,10 +22,10 @@ flags['data_dir'] = '../Dataset/RSNA'
 flags['DHA_dir'] = 'E:/code/Dataset/DHA/Digital Hand Atlas'
 flags['teacher_path'] = "./ckp/Unet/unet_segmentation_Attn_UNet.pth"
 flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['contrast_path'] = "./KD_All_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_DropLast_pretrained_12-26/Contrast_WCL_IN_CBAM_AVGPool_AdaA_DropLast_pretrained_12-26.bin"
+flags['contrast_path'] = "./Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_DropLast_pretrained_12-26/Contrast_WCL_IN_CBAM_AVGPool_AdaA_DropLast_pretrained_12-26.bin"
 # flags['student_path'] = "./Student/baseline/Res50_All.bin"
 # flags['student_path'] = "./KD_All_Output/KD_Res18_3090/KD_Res18.bin"
-flags['csv_name'] = "Contrast.csv"
+flags['csv_name'] = "Contrast_minus3.csv"
 flags['mask_option'] = False
 flags['DHA_option'] = False
 
@@ -73,7 +73,7 @@ def evaluate_fn(val_loader):
             # print(mae_loss)
 
             log_valid_result_to_csv(id, label.cpu(), gender.cpu(), y_pred.cpu(), batch_loss.cpu(), log_path)
-            save_attn_all_KD(s1, s2, s3, s4, id, ckp_dir)
+            # save_attn_all_KD(s1, s2, s3, s4, id, ckp_dir)
     mae_loss = mae_loss / val_total_size
     # best_idx = torch.argmin(mae_loss)
     # print(f"valid loss: {mae_loss}, best_idx: {best_idx}")

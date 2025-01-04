@@ -76,6 +76,30 @@ class Student_Model(nn.Module):
 
         return num_params
 
+    def manifold(self, image, gender):
+        x0, attn0 = self.attn0(self.backbone0(image))
+        x1, attn1 = self.attn1(self.backbone1(x0))
+        x2, attn2 = self.attn2(self.backbone2(x1))
+        x3, attn3 = self.attn3(self.backbone3(x2))
+
+        x = F.adaptive_avg_pool2d(x3, 1)
+        x = torch.squeeze(x)
+        x = x.view(-1, self.out_channels)
+
+        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))
+
+        x = torch.cat([x, gender_encode], dim=1)
+
+        # x = self.fc(x)
+        for i in range(len(self.fc)):
+            x = self.fc[i](x)
+            if i == 3:
+                linear_out = x
+        assert linear_out.shape[-1] == 512
+        linear_out = F.normalize(linear_out, dim=1)
+
+        return linear_out, 0, 0
+
 
 class Student_Model_Res18(nn.Module):
     def __init__(self, gender_encode_length, backbone, out_channels):

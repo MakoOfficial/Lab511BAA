@@ -27,17 +27,17 @@ flags['num_workers'] = 8
 flags['num_epochs'] = 100
 flags['data_dir'] = 'C:/BoneAgeAssessment/RSNA'
 flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['save_path'] = '../KD_All_Output_A5000'
-flags['model_name'] = 'Only_Contrast_WCL_IN_CBAM_AVGPool_AdaA_pretrained_1_1'
-flags['node'] = '消融蒸馏模块，只使用对比学习'
+flags['save_path'] = '../KD_All_Output_3090'
+flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_modifyParamWCL_1_4'
+flags['node'] = '调整对比超参数'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
 flags['weight_decay'] = 0
 flags['best_loss'] = 0
-flags['triple_loss_0_lambda'] = 0.4
-flags['triple_loss_1_lambda'] = 0.4
-flags['WCL_setting'] = dict(p=0.5, tempS=1, thresholdS=0.1, tempW=0.2)
+flags['triple_loss_0_lambda'] = 0.5
+flags['triple_loss_1_lambda'] = 0.5
+flags['WCL_setting'] = dict(p=1, tempS=5, thresholdS=0.2, tempW=0.2)
 
 
 seed = flags['seed']
