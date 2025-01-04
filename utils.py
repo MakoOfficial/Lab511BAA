@@ -525,16 +525,6 @@ def label_distribute(df):
 # def scale_loss(pred, label, label_count):
 import pandas as pd
 if __name__ == '__main__':
-
-    valid_data = torch.load(os.path.join(filepath, "valid_features.pt"))
-    valid_labels = torch.load(os.path.join(filepath, "valid_labels.pt"))
-    # 假设你的特征矩阵为 features，形状为 [B, C]
-    features = torch.tensor([[1, 2, 3],
-                             [4, 5, 6],
-                             [7, 8, 9]], dtype=torch.float32)
-
-    # 计算每个样本的 L2 范数
-    l2_norms = torch.norm(features, p=2, dim=1)
-
-    # 打印结果
-    print("L2 norms:", l2_norms)
+    train_csv = "./KD_All_Output/KD_modify_firstConv_RandomCrop/valid_loss.csv"
+    train_df = pd.read_csv(train_csv)
+    print(label_distribute(train_df))
