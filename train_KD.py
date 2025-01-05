@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Dataset
 
-from datasets import RSNATrainDataset, RSNAValidDataset
+from datasets import RSNATrainDataset, RSNAValidDataset, RSNAMergeDataset
 from utils import L1_penalty, log_losses_to_csv, save_attn_KD, \
     attn_offset_kl_loss_firstStage, attn_offset_mse_loss_firstStage, attn_kl_loss_singleStage_ablation
 
@@ -201,13 +201,13 @@ if __name__ == "__main__":
     #   load data setting
     data_dir = flags['data_dir']
 
-    # train_path = os.path.join(data_dir, "train")
-    train_path = "../../autodl-tmp/archive/train"
+    train_path = os.path.join(data_dir, "train")
+    # train_path = "../../autodl-tmp/archive/train"
     valid_path = os.path.join(data_dir, "valid")
 
-    # train_csv = os.path.join(data_dir, "train_4K.csv")
+    train_csv = os.path.join(data_dir, "train_4K_merge.csv")
     # train_csv = os.path.join(data_dir, "train.csv")
-    train_csv = "../../autodl-tmp/archive/train.csv"
+    # train_csv = "../../autodl-tmp/archive/train_4K_merge.csv"
     train_df = pd.read_csv(train_csv)
     valid_csv = os.path.join(data_dir, "valid.csv")
     valid_df = pd.read_csv(valid_csv)
@@ -218,7 +218,7 @@ if __name__ == "__main__":
     print(f"boneage_div is {boneage_div}")
     print(f'{save_path} start')
 
-    train_set = RSNATrainDataset(train_df, train_path, boneage_mean, boneage_div)
+    train_set = RSNAMergeDataset(train_df, data_dir, boneage_mean, boneage_div)
     valid_set = RSNAValidDataset(valid_df, valid_path, boneage_mean, boneage_div)
     print(train_set.__len__())
 

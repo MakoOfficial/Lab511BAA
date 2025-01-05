@@ -55,6 +55,25 @@ class RSNATrainDataset(BaseDataset):
         return (RSNA_transform_train(image), Tensor([row['male']])), row['zscore'], row['boneage']
 
 
+class RSNAMergeDataset(BaseDataset):
+    def __init__(self, df, file_path, age_mean, age_div):
+        super().__init__(df, file_path, age_mean, age_div)
+
+    def get_image_path(self, index):
+        row = self.df.iloc[index]
+        num = int(row['id'])
+        set = row['path']
+        file_path = f"{self.file_path}/{set}/{num}.png"
+        return row, file_path
+
+    def __getitem__(self, index):
+        row, image_path = self.get_image_path(index)
+        image = Image.open(image_path).convert('L')
+
+        return (RSNA_transform_train(image), Tensor([row['male']])), row['zscore'], row['boneage']
+
+
+
 class RSNAValidDataset(BaseDataset):
     def __init__(self, df, file_path, age_mean, age_div):
         super().__init__(df, file_path, age_mean, age_div)
