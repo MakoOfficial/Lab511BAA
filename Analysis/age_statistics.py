@@ -155,7 +155,7 @@ def print_predict_dot_map(df, title, save_path):
 
     # 设置坐标轴标签和标题
     plt.xlabel('Grand Truth(Months)')
-    plt.ylabel('Predicted Age(Months)')
+    plt.ylabel('MAE(Months)')
     plt.title(f'Predicted Age vs Grand Truth for {title}')
 
     # 显示图例
@@ -167,6 +167,49 @@ def print_predict_dot_map(df, title, save_path):
     # plt.show()
     plt.clf()
     plt.close('all')
+
+
+def print_deviation_dot_map(df, title, save_path):
+    # 提取标签和预测值
+    labels_1 = torch.tensor(df[df['male'] == 1]['boneage'].values, dtype=torch.float32)
+    predictions_1 = torch.tensor(df[df['male'] == 1]['pred'].values, dtype=torch.float32)
+    loss_1 = predictions_1 - labels_1
+    labels_2 = torch.tensor(df[df['male'] == 0]['boneage'].values, dtype=torch.float32)
+    predictions_2 = torch.tensor(df[df['male'] == 0]['pred'].values, dtype=torch.float32)
+    loss_2 = predictions_2 - labels_2
+
+    # 创建一个新的图形
+    plt.figure(figsize=(10, 6))
+
+    # 绘制 loss_1，使用蓝色三角形标记
+    plt.scatter(labels_1, loss_1, color='blue', marker='^', label='male', s=10)
+
+    # 绘制 loss_2，使用红色圆形标记
+    plt.scatter(labels_2, loss_2, color='red', marker='o', label='female', s=10)
+
+    # 绘制 y=x 绿色直线
+    # plt.plot([0, 228], [0, 228], color='green', linestyle='-', label='Actual Age')
+    plt.axhline(y=0, color='black', linestyle='-', linewidth=1, label='y=0')
+    plt.axhline(y=10, color='black', linestyle='--', linewidth=1, label='y=10')
+    plt.axhline(y=-10, color='black', linestyle='--', linewidth=1, label='y=-10')
+
+    plt.xticks(np.arange(0, 229, 50))
+    plt.yticks(np.arange(-40, 41, 10))
+    plt.ylim(-40, 40)
+    # 设置坐标轴标签和标题
+    plt.xlabel('Grand Truth(Months)')
+    plt.ylabel('Deviation(Months)')
+    plt.title(f'Correlation between actual age and deviation for {title}')
+
+    # 显示图例
+    plt.legend()
+
+    # 显示图形
+    plt.grid(True)
+    # plt.savefig(os.path.join(save_path, f"{title}_Predict.png"), dpi=800)
+    plt.show()
+    # plt.clf()
+    # plt.close('all')
 
 
 def print_group_loss(df, title, save_path):
@@ -275,8 +318,9 @@ def analysis_one_csv(csv_path, title, save_dir):
         loss_male_by_month,
         loss_female_by_month)
 
-    print_predict_dot_map(valid_csv, title=f"{title} Result", save_path=save_dir)
-    print_group_loss(valid_csv, title=f"{title} Result", save_path=save_dir)
+    # print_predict_dot_map(valid_csv, title=f"{title} Result", save_path=save_dir)
+    # print_group_loss(valid_csv, title=f"{title} Result", save_path=save_dir)
+    print_deviation_dot_map(valid_csv, title=f"{title} Result", save_path=save_dir)
 
 
 
