@@ -206,10 +206,10 @@ def print_deviation_dot_map(df, title, save_path):
 
     # 显示图形
     plt.grid(True)
-    # plt.savefig(os.path.join(save_path, f"{title}_Predict.png"), dpi=800)
+    plt.savefig(os.path.join(save_path, f"{title}_Deviation.png"), dpi=800)
     plt.show()
-    # plt.clf()
-    # plt.close('all')
+    plt.clf()
+    plt.close('all')
 
 
 def print_group_loss(df, title, save_path):

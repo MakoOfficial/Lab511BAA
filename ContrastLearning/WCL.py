@@ -12,6 +12,8 @@ class WCL(nn.Module):
         # 设定计算分数的超参数
         self.p = p
         self.tempS = tempS
+        self.tempS_Male = tempS
+        self.tempS_Female = tempS / 2
         self.thresholdS = thresholdS
 
         self.tempW = tempW
@@ -39,6 +41,22 @@ class WCL(nn.Module):
         # print(score_matrix)
         return score_matrix
 
+    def count_score_in_gender(self, label, gender):
+        # gender ∈ [B, 1]
+        gender = gender.view(-1)
+        tempS_gender = gender * self.tempS_Male + (1 - gender) * self.tempS_Female
+
+        length = len(label)
+        label_clone_1 = label.clone().view(length, 1)
+        label_clone_2 = label.clone().view(1, length)
+        tempS_gender = tempS_gender.view(length, 1) # 保证向dim=1处广播
+
+        distance_matrix = torch.abs(label_clone_1 - label_clone_2)
+
+        score_matrix = torch.exp(-(torch.div(distance_matrix, tempS_gender)).pow(self.p))
+        score_matrix = score_matrix * (score_matrix >= self.thresholdS)
+        return score_matrix
+
     def count_distance_out(self, logit):
         logit_clone = logit.clone()
         dot = torch.exp(torch.matmul(logit, logit_clone.T) / self.tempW)    # BxB
@@ -61,10 +79,20 @@ class WCL(nn.Module):
     #     loss_triplet = (score_matrix * dot_matrix).sum()
     #     return loss_triplet
 
-    def forward(self, minibatch_features, label):
-        """count in"""
+    # def forward(self, minibatch_features, label):
+    #     """count in"""
+    #     # mask = torch.eq(label, label.T).float().cuda()
+    #     score_matrix = self.count_score_in(label)
+    #     dot_matrix = self.count_distance_in(minibatch_features)
+    #     weight_dot_matrix = (score_matrix * dot_matrix).sum(-1)
+    #     weight_dot_matrix = - torch.log(torch.clamp(weight_dot_matrix, min=1e-10))
+    #     loss_triplet = weight_dot_matrix.sum()
+    #     return loss_triplet
+
+    def forward(self, minibatch_features, label, gender):
+        """count in || Gender"""
         # mask = torch.eq(label, label.T).float().cuda()
-        score_matrix = self.count_score_in(label)
+        score_matrix = self.count_score_in_gender(label, gender)
         dot_matrix = self.count_distance_in(minibatch_features)
         weight_dot_matrix = (score_matrix * dot_matrix).sum(-1)
         weight_dot_matrix = - torch.log(torch.clamp(weight_dot_matrix, min=1e-10))
@@ -129,11 +157,13 @@ class WCL(nn.Module):
 
 
 if __name__ == '__main__':
-    wcl = WCL(p=1, tempS=5, thresholdS=0.2, tempW=0.2)
+    # wcl = WCL(p=0.5, tempS=0.5, thresholdS=0.2, tempW=0.2)
+    wcl = WCL(p=0.5, tempS=1, thresholdS=0.1, tempW=0.2)
     for name, param in wcl.parameters():
         print(name)
     #
-    label = torch.range(0, 16).type(torch.float32)
+    label = torch.range(0, 11).type(torch.float32)
+    gender = torch.tensor([0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1]).type(torch.float32)
     # label = torch.tensor((0, 0, 1, 1, 2, 2), dtype=torch.float32)
     logit = torch.tensor(((1, 1, 0, 0, 0, 0), (1, 1, 0, 0, 0, 0),
                           (0, 0, 1, 1, 0, 0), (0, 0, 1, 1, 0, 0),
@@ -142,7 +172,7 @@ if __name__ == '__main__':
                           (0, 0, 1, 1, 0, 0), (0, 0, 1, 1, 0, 0),
                           (0, 0, 0, 0, 1, 1), (0, 0, 0, 0, 1, 1)), dtype=torch.float32)
     logit = F.normalize(logit, dim=1)
-    print(wcl(logit, label))
+    print(wcl(logit, label, gender))
 
 
 

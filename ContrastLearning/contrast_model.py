@@ -381,8 +381,6 @@ class Student_Contrast_Model(nn.Module):
         x = F.adaptive_avg_pool2d(x3, 1)
         x = torch.flatten(x, 1)
 
-        logits = x
-
         x = torch.cat([x, gender_encode], dim=1)
         # cls_token2 = torch.cat([cls_token2, gender_encode], dim=1)
         # cls_token3 = torch.cat([cls_token3, gender_encode], dim=1)
@@ -392,7 +390,7 @@ class Student_Contrast_Model(nn.Module):
 
         x = self.fc(x)
 
-        return x, cls_token2, cls_token3, attn0, attn1, attn2, attn3, logits
+        return x, cls_token2, cls_token3, attn0, attn1, attn2, attn3
 
     def freeze_params(self):
         for _, param in self.backbone0.named_parameters():
@@ -432,77 +430,6 @@ class Student_Contrast_Model(nn.Module):
     #
     #     return linear_out, cls_token2, cls_token3, cls_token2_before, cls_token3_before
 
-
-# class Only_Contrast_Model(nn.Module):
-#     """只使用对比"""
-#
-#     def __init__(self, backbone, backbone_res):
-#         super(Only_Contrast_Model, self).__init__()
-#         # self.out_channels = out_channels
-#         self.backbone0 = backbone.backbone0
-#         self.attn0 = backbone.attn0
-#         self.backbone1 = backbone.backbone1
-#         self.attn1 = backbone.attn1
-#         self.freeze_params()
-#
-#         self.backbone2 = backbone_res[6]
-#         # self.adj_learning0 = CNNAttention(1024, 768, 32)
-#         self.adj_learning0 = AdaA(1024, 768, 32)
-#         self.backbone3 = backbone_res[7]
-#         # self.adj_learning1 = CNNAttention(2048, 768, 16)
-#         self.adj_learning1 = AdaA(2048, 768, 16)
-#
-#         self.gender_encoder = nn.Linear(1, 32)
-#         self.gender_bn = nn.BatchNorm1d(32)
-#
-#         self.fc = nn.Sequential(
-#             nn.Linear(2048 + 32, 1024),
-#             nn.BatchNorm1d(1024),
-#             nn.ReLU(),
-#             # nn.Dropout(0.2),
-#             nn.Linear(1024, 512),
-#             nn.BatchNorm1d(512),
-#             nn.ReLU(),
-#             # nn.Dropout(0.2),
-#             nn.Linear(512, 1)
-#         )
-#
-#         self.cls_Embedding_0 = nn.Sequential(
-#             nn.Linear(1024, 512),
-#             nn.ReLU(),
-#             # nn.BatchNorm1d(512),
-#             nn.Linear(512, 1024)
-#         )
-#
-#         self.cls_Embedding_1 = nn.Sequential(
-#             nn.Linear(2048, 512),
-#             nn.ReLU(),
-#             # nn.BatchNorm1d(512),
-#             nn.Linear(512, 1024)
-#         )
-#
-#     def forward(self, image, gender):
-#         gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender))) # B * 32
-#         x0, attn0 = self.attn0(self.backbone0(image))
-#         x1, attn1 = self.attn1(self.backbone1(x0))
-#         # x2 = self.backbone2(x1)
-#         # x3 = self.backbone3(x2)
-#         x2, cls_token2, attn2 = self.adj_learning0(self.backbone2(x1), gender_encode)
-#         x3, cls_token3, attn3 = self.adj_learning1(self.backbone3(x2), gender_encode)
-#
-#         x = F.adaptive_avg_pool2d(x3, 1)
-#         x = torch.flatten(x, 1)
-#
-#         x = torch.cat([x, gender_encode], dim=1)
-#
-#         cls_token2 = F.normalize(self.cls_Embedding_0(cls_token2), dim=1)
-#         cls_token3 = F.normalize(self.cls_Embedding_1(cls_token3), dim=1)
-#
-#         x = self.fc(x)
-#
-#         return x, cls_token2, cls_token3, attn0, attn1, attn2, attn3
-#         # return x, 0, 0, attn0, attn1, attn0, attn1
-#
 
 def getContrastModel(student_path):
     student_model = get_student()

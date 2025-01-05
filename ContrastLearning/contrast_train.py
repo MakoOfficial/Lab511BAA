@@ -28,8 +28,8 @@ flags['num_epochs'] = 100
 flags['data_dir'] = '../archive'
 flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = '../../autodl-tmp/KD_All_Output_3090'
-flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_1_4'
-flags['node'] = '调整对比超参数'
+flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_Gender_1_6'
+flags['node'] = 'WCL增加性别信息，使得女性的惩罚力度更大，能缩小男女损失的相对差距就算成功'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
@@ -86,8 +86,8 @@ def train_fn(train_loader, loss_fn, triple_fn, optimizer):
         label = label.squeeze()
 
         loss = loss_fn(y_pred, label)
-        triple_loss_0 = triple_fn(cls_token0, img_gt)
-        triple_loss_1 = triple_fn(cls_token1, img_gt)
+        triple_loss_0 = triple_fn(cls_token0, img_gt, gender)
+        triple_loss_1 = triple_fn(cls_token1, img_gt, gender)
 
         # backward,calculate gradients
         penalty_loss = L1_penalty(contrast_model, 1e-5)
