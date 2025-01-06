@@ -19,7 +19,7 @@ data_dir = "E:/code/Dataset/RSNA"
 csv_map = {
     "Origin": '../Result_csv/original/new/未蒸馏5.17.csv',
     "KD": '../Result_csv/original/new/蒸馏Res50_4.39.csv',
-    "Contrast Learning": '../Result_csv/original/new/Contrast_3.86.csv'
+    "Contrast Learning": '../KD_All_Output/TSNE_Merge_4K_1_6_after_100epoch/TSNE_3.86.csv'
 }
 
 
@@ -206,7 +206,7 @@ def print_deviation_dot_map(df, title, save_path):
 
     # 显示图形
     plt.grid(True)
-    plt.savefig(os.path.join(save_path, f"{title}_Deviation.png"), dpi=800)
+    # plt.savefig(os.path.join(save_path, f"{title}_Deviation.png"), dpi=800)
     plt.show()
     plt.clf()
     plt.close('all')

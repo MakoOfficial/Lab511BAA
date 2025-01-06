@@ -175,36 +175,36 @@ class AdaA(nn.Module):
 
         return attn * x, torch.flatten(cls_token, 1), attn
 
-    # def manifold(self, x, gender_encode):
-    #     B, C, H, W = x.shape
-    #     cls_token = self.avg_pool(x)  # B C 1 1
-    #     cls_token = rearrange(cls_token, 'b d h w -> b (h w) d')    # B 1 C
-    #
-    #     cls_token_before = cls_token.clone()
-    #
-    #     feature_vector = rearrange(x, 'b d h w -> b (h w) d')
-    #
-    #     feature_total = torch.cat((cls_token, feature_vector), dim=1)   # B (HxW)+1 C
-    #     gender_encode = gender_encode.unsqueeze(dim=1).repeat(1, (H*W)+1, 1)
-    #     feature_total = torch.cat((feature_total, gender_encode), dim=-1)   # B (HxW)+1 C+32
-    #
-    #     q = self.norm(self.relu(self.q(feature_total)))   # B (HxW)+1 attn_dim
-    #     k = self.norm(self.relu(self.k(feature_total)))  # B (HxW)+1 attn_dim
-    #     v = self.norm(self.relu(self.v(feature_total)))  # B (HxW)+1 attn_dim
-    #
-    #     attn = torch.matmul(q, k.transpose(-1, -2))  # B (HxW)+1 (HxW)+1
-    #     attn = self.softmax(attn * self.scale)  # B (HxW)+1 (HxW)+1
-    #
-    #     feature_out = torch.matmul(attn, v) # B (HxW)+1 attn_dim
-    #
-    #     cls_token = feature_out[:, 0].reshape(B, -1, 1, 1)   # B, attn_dim, 1, 1
-    #
-    #     cls_token = self.fc2(cls_token) # B, in_channel, 1, 1
-    #
-    #     # max_out = self.fc2(self.relu1(self.fc1(self.max_pool(x))))
-    #     attn = rearrange(attn[:, 0, 1:], 'b (h w) -> b h w', h=self.in_size, w=self.in_size).unsqueeze(dim=1)    # B H W
-    #
-    #     return attn * x, torch.flatten(cls_token, 1), attn, torch.flatten(cls_token_before, 1)
+    def manifold(self, x, gender_encode):
+        B, C, H, W = x.shape
+        cls_token = self.avg_pool(x)  # B C 1 1
+        cls_token = rearrange(cls_token, 'b d h w -> b (h w) d')    # B 1 C
+
+        cls_token_before = cls_token.clone()
+
+        feature_vector = rearrange(x, 'b d h w -> b (h w) d')
+
+        feature_total = torch.cat((cls_token, feature_vector), dim=1)   # B (HxW)+1 C
+        gender_encode = gender_encode.unsqueeze(dim=1).repeat(1, (H*W)+1, 1)
+        feature_total = torch.cat((feature_total, gender_encode), dim=-1)   # B (HxW)+1 C+32
+
+        q = self.norm(self.relu(self.q(feature_total)))   # B (HxW)+1 attn_dim
+        k = self.norm(self.relu(self.k(feature_total)))  # B (HxW)+1 attn_dim
+        v = self.norm(self.relu(self.v(feature_total)))  # B (HxW)+1 attn_dim
+
+        attn = torch.matmul(q, k.transpose(-1, -2))  # B (HxW)+1 (HxW)+1
+        attn = self.softmax(attn * self.scale)  # B (HxW)+1 (HxW)+1
+
+        feature_out = torch.matmul(attn, v) # B (HxW)+1 attn_dim
+
+        cls_token = feature_out[:, 0].reshape(B, -1, 1, 1)   # B, attn_dim, 1, 1
+
+        cls_token = self.fc2(cls_token) # B, in_channel, 1, 1
+
+        # max_out = self.fc2(self.relu1(self.fc1(self.max_pool(x))))
+        attn = rearrange(attn[:, 0, 1:], 'b (h w) -> b h w', h=self.in_size, w=self.in_size).unsqueeze(dim=1)    # B H W
+
+        return attn * x, torch.flatten(cls_token, 1), attn, torch.flatten(cls_token_before, 1)
 
 
 class CNNFeedForward(nn.Module):
@@ -402,33 +402,33 @@ class Student_Contrast_Model(nn.Module):
         for _, param in self.attn1.named_parameters():
             param.requires_grad = False
 
-    # def manifold(self, image, gender):
-    #     gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender))) # B * 32
-    #     x0, attn0 = self.attn0(self.backbone0(image))
-    #     x1, attn1 = self.attn1(self.backbone1(x0))
-    #
-    #     x2, cls_token2, attn2, cls_token2_before = self.adj_learning0.manifold(self.backbone2(x1), gender_encode)
-    #     x3, cls_token3, attn3, cls_token3_before = self.adj_learning1.manifold(self.backbone3(x2), gender_encode)
-    #
-    #     x = F.adaptive_avg_pool2d(x3, 1)
-    #     x = torch.flatten(x, 1)
-    #
-    #     x = torch.cat([x, gender_encode], dim=1)
-    #     # cls_token2 = torch.cat([cls_token2, gender_encode], dim=1)
-    #     # cls_token3 = torch.cat([cls_token3, gender_encode], dim=1)
-    #
-    #     cls_token2 = F.normalize(self.cls_Embedding_0(cls_token2), dim=1)
-    #     cls_token3 = F.normalize(self.cls_Embedding_1(cls_token3), dim=1)
-    #
-    #     # x = self.fc(x)
-    #     for i in range(len(self.fc)):
-    #         x = self.fc[i](x)
-    #         if i == 3:
-    #             linear_out = x
-    #     assert linear_out.shape[-1] == 512
-    #     linear_out = F.normalize(linear_out, dim=1)
-    #
-    #     return linear_out, cls_token2, cls_token3, cls_token2_before, cls_token3_before
+    def manifold(self, image, gender):
+        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender))) # B * 32
+        x0, attn0 = self.attn0(self.backbone0(image))
+        x1, attn1 = self.attn1(self.backbone1(x0))
+
+        x2, cls_token2, attn2, cls_token2_before = self.adj_learning0.manifold(self.backbone2(x1), gender_encode)
+        x3, cls_token3, attn3, cls_token3_before = self.adj_learning1.manifold(self.backbone3(x2), gender_encode)
+
+        x = F.adaptive_avg_pool2d(x3, 1)
+        x = torch.flatten(x, 1)
+
+        x = torch.cat([x, gender_encode], dim=1)
+        # cls_token2 = torch.cat([cls_token2, gender_encode], dim=1)
+        # cls_token3 = torch.cat([cls_token3, gender_encode], dim=1)
+
+        cls_token2 = F.normalize(self.cls_Embedding_0(cls_token2), dim=1)
+        cls_token3 = F.normalize(self.cls_Embedding_1(cls_token3), dim=1)
+
+        # x = self.fc(x)
+        for i in range(len(self.fc)):
+            x = self.fc[i](x)
+            if i == 3:
+                linear_out = x
+        assert linear_out.shape[-1] == 512
+        linear_out = F.normalize(linear_out, dim=1)
+
+        return linear_out, cls_token2, cls_token3, cls_token2_before, cls_token3_before
 
 
 def getContrastModel(student_path):

@@ -28,7 +28,7 @@ flags['num_epochs'] = 100
 flags['data_dir'] = '../archive'
 flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = '../../autodl-tmp/KD_All_Output_3090'
-flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_Gender_1_6'
+flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7'
 flags['node'] = 'WCL增加性别信息，使得女性的惩罚力度更大，能缩小男女损失的相对差距就算成功'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
@@ -215,7 +215,7 @@ if __name__ == "__main__":
     # train_path = "../../autodl-tmp/archive/train"
     valid_path = os.path.join(data_dir, "valid")
 
-    train_csv = os.path.join(data_dir, "train.csv")
+    train_csv = os.path.join(data_dir, "train_4K.csv")
     # train_csv = "../../autodl-tmp/archive/train.csv"
     train_df = pd.read_csv(train_csv)
     valid_csv = os.path.join(data_dir, "valid.csv")
