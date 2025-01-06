@@ -146,7 +146,7 @@ class Student_Model_Feature(nn.Module):
 
         x = self.fc(x)
 
-        return x, attn0, attn1, attn2, attn3
+        return x, x1, x2, x3, attn3
 
 
 class Student_Model_Res18(nn.Module):
@@ -194,7 +194,7 @@ class Student_Model_Res18(nn.Module):
 
         x = self.fc(x)
 
-        return x, x1, x2, x3, x4
+        return x, attn0, attn1, attn2, attn3
 
     def count_params(self):
         num_params = sum(p.nelement() for p in self.backbone0.parameters() if p.requires_grad == True)
@@ -324,6 +324,10 @@ class GAT(nn.Module):
 
 def get_student(pretrained=True):
     return Student_Model(32, *get_pretrained_resnet50(pretrained=pretrained))
+
+
+def get_student_feature(pretrained=True):
+    return Student_Model_Feature(32, *get_pretrained_resnet50(pretrained=pretrained))
 
 
 def get_student_res18(pretrained=True):

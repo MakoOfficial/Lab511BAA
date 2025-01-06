@@ -15,7 +15,7 @@ from datasets import RSNATrainDataset, RSNAValidDataset
 from utils import L1_penalty, log_losses_to_csv, save_attn_KD, \
     feature_offset_kl_loss_firstStage, feature_offset_mse_loss_firstStage
 
-from Student.student_model import get_student, get_student_res18
+from Student.student_model import get_student, get_student_res18, get_student_feature
 from Unet.UNets import get_Attn_Unet
 
 warnings.filterwarnings("ignore")
@@ -194,8 +194,7 @@ if __name__ == "__main__":
         param.requires_grad = False
     teacher.eval()
     #   prepare student model
-    student_model = get_student().cuda()
-    # student_model = get_student_res18().cuda()
+    student_model = get_student_feature().cuda()
     #   load data setting
     data_dir = flags['data_dir']
 
