@@ -57,7 +57,7 @@ def evaluate_fn(valid_loader):
 
 
 if __name__ == "__main__":
-    ckpt_path = "../Contrast_Output/Contrast_WCL_IN_AVGPool_AdaA_1_5_Merge/Contrast_WCL_IN_AVGPool_AdaA_1_5_Merge.bin"
+    ckpt_path = "../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96_200epoch/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96_200epoch.bin"
     # ckpt_path = "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
     ckpt_dir = os.path.dirname(ckpt_path)
     save_path = os.path.join(ckpt_dir, 'manifold')
@@ -78,7 +78,7 @@ if __name__ == "__main__":
     data_dir = 'E:/code/Dataset/RSNA'
 
     # valid_csv = os.path.join(data_dir, "valid.csv")
-    valid_csv = os.path.join(os.path.join(ckpt_dir, "Contrast_Merge_2.csv"))
+    valid_csv = os.path.join(os.path.join(ckpt_dir, "Contrast_4K_Gender_96_200e_3.75.csv"))
     valid_df = pd.read_csv(valid_csv)
     valid_path = os.path.join(data_dir, "valid")
     valid_Dataset = datasets.RSNATestDataset(valid_df, valid_path, 0, 1)

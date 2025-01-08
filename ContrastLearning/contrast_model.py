@@ -22,6 +22,22 @@ def get_pretrained_resnet18(pretrained=True):
     return model, output_channels
 
 
+class GatingBlock(nn.Module):
+    def __init__(self, in_planes):
+        super(GatingBlock, self).__init__()
+
+        self.fc1 = nn.Linear(in_planes, in_planes, bias=False)
+        self.fc2 = nn.Linear(in_planes, in_planes, bias=False)
+        self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        v = self.relu(self.fc1(x))
+        g = self.sigmoid(self.relu(self.fc2(x)))
+        out = g * v
+        return x + out
+
+
 class Contrast_Model(nn.Module):
 
     def __init__(self, backbone) -> None:
@@ -354,6 +370,7 @@ class Student_Contrast_Model(nn.Module):
             # nn.Dropout(0.2),
             nn.Linear(512, 1)
         )
+        self.gate = GatingBlock(512)
 
         self.cls_Embedding_0 = nn.Sequential(
             nn.Linear(1024, 512),
@@ -388,7 +405,11 @@ class Student_Contrast_Model(nn.Module):
         cls_token2 = F.normalize(self.cls_Embedding_0(cls_token2), dim=1)
         cls_token3 = F.normalize(self.cls_Embedding_1(cls_token3), dim=1)
 
-        x = self.fc(x)
+        for i in range(len(self.fc)):
+            x = self.fc[i](x)
+            if i == 5:
+                x = self.gate(x)
+        # x = self.fc(x)
 
         return x, cls_token2, cls_token3, attn0, attn1, attn2, attn3
 

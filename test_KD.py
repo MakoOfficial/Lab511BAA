@@ -22,7 +22,7 @@ flags['data_dir'] = '../Dataset/RSNA'
 flags['DHA_dir'] = 'E:/code/Dataset/DHA/Digital Hand Atlas'
 flags['teacher_path'] = "./ckp/Unet/unet_segmentation_Attn_UNet.pth"
 # flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['contrast_path'] = "./Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_DropLast_pretrained_12-26/Contrast_WCL_IN_CBAM_AVGPool_AdaA_DropLast_pretrained_12-26.bin"
+flags['contrast_path'] = "./Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96_200epoch/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96_200epoch.bin"
 # flags['student_path'] = "./Student/baseline/Res50_All.bin"
 # flags['student_path'] = "./KD_All_Output/KD_Res18_3090/KD_Res18.bin"
 flags['student_path'] = "./KD_All_Output/TSNE_Merge_4K_1_6_after_100epoch/TSNE_Merge_4K_1_6_after_100epoch.bin"
@@ -115,7 +115,6 @@ if __name__ == "__main__":
 
     train_csv = os.path.join(data_dir, "train.csv")
     train_df = pd.read_csv(train_csv)
-    train_merge_df = pd.read_csv("E:/code/Dataset/RSNA/train_4K_merge.csv")
 
     if flags['DHA_option']:
         valid_csv = os.path.join(flags['DHA_dir'], "label.csv")
@@ -133,17 +132,28 @@ if __name__ == "__main__":
     # boneage_mean = train_df['boneage'].mean()
     # boneage_div = train_df['boneage'].std()
 
-    boneage_mean = train_merge_df['boneage'].mean()
-    boneage_div = train_merge_df['boneage'].std()
+    boneage_mean = train_df['boneage'].mean()
+    boneage_div = train_df['boneage'].std()
 
 
     print(f"boneage_mean is {boneage_mean}")
     print(f"boneage_div is {boneage_div}")
     print(f'valid file save at {ckp_dir}')
 
+    train_set = valid_Dataset(train_df, train_path, boneage_mean, boneage_div)
     Test_set = valid_Dataset(valid_df, valid_path, boneage_mean, boneage_div)
     print(f"Test set length: {Test_set.__len__()}")
+    print(f"Train set length: {train_set.__len__()}")
     # print(f"Test set length: 1425")
+
+    train_loader = torch.utils.data.DataLoader(
+        train_set,
+        batch_size=flags['batch_size'],
+        shuffle=False,
+        drop_last=False,
+        pin_memory=True,
+    )
+
 
     valid_loader = torch.utils.data.DataLoader(
         Test_set,

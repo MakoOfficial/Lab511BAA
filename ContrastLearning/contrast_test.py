@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 
 from datasets import RSNATestDataset, DHADataset
-from utils import log_valid_result_to_csv, save_attn_all, save_attn_all_KD, log_valid_result_logits_to_csv
+from utils import log_valid_result_to_csv, save_attn_all, save_attn_all_KD, log_valid_result_logits_to_csv, l1_loss
 
 from Student.student_model import get_student, get_student_res18
 from ContrastLearning.contrast_model import get_student_contrast_model
@@ -21,9 +21,9 @@ flags['num_workers'] = 8
 flags['data_dir'] = '../../Dataset/RSNA'
 flags['DHA_dir'] = 'E:/code/Dataset/DHA/Digital Hand Atlas'
 flags['student_path'] = "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['contrast_path'] = "../Contrast_Output/Contrast_WCL_IN_AVGPool_AdaA_1_5_Merge/Contrast_WCL_IN_AVGPool_AdaA_1_5_Merge.bin"
+flags['contrast_path'] = "../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96.bin"
 
-flags['csv_name'] = "Contrast_Merge.csv"
+flags['csv_name'] = "Contrast_Gender_96_train.csv"
 flags['DHA_option'] = False
 
 
@@ -53,7 +53,7 @@ def evaluate_fn(val_loader):
             y_pred = y_pred.squeeze()
             label = label.squeeze()
 
-            batch_loss = F.l1_loss(y_pred, label, reduction='none')
+            y_pred, batch_loss = l1_loss(y_pred, label)
             mae_loss += batch_loss.sum().item()
 
             log_valid_result_to_csv(id, label.cpu(), gender.cpu(), y_pred.cpu(), batch_loss.cpu(), log_path)
@@ -82,9 +82,9 @@ if __name__ == "__main__":
     train_path = os.path.join(data_dir, "train")
     valid_path = os.path.join(data_dir, "valid")
 
-    train_csv = os.path.join(data_dir, "train.csv")
-    train_df = pd.read_csv(train_csv)
-    train_merge_df = pd.read_csv("E:/code/Dataset/RSNA/train_merge.csv")
+    train_csv_ori = os.path.join(data_dir, "train_4K.csv")
+    train_df_ori = pd.read_csv(train_csv_ori)
+    # train_merge_df = pd.read_csv("E:/code/Dataset/RSNA/train_merge.csv")
 
     if flags['DHA_option']:
         valid_csv = os.path.join(flags['DHA_dir'], "label.csv")
@@ -99,20 +99,28 @@ if __name__ == "__main__":
         valid_Dataset = RSNATestDataset
 
 
-    # boneage_mean = train_df['boneage'].mean()
-    # boneage_div = train_df['boneage'].std()
+    boneage_mean = train_df_ori['boneage'].mean()
+    boneage_div = train_df_ori['boneage'].std()
 
-    boneage_mean = train_merge_df['boneage'].mean()
-    boneage_div = train_merge_df['boneage'].std()
+
+    train_df = pd.read_csv(os.path.join(data_dir, "train.csv"))
 
 
     print(f"boneage_mean is {boneage_mean}")
     print(f"boneage_div is {boneage_div}")
     print(f'valid file save at {ckp_dir}')
 
+    train_set = valid_Dataset(train_df, train_path, boneage_mean, boneage_div)
     Test_set = valid_Dataset(valid_df, valid_path, boneage_mean, boneage_div)
-    print(f"Test set length: {Test_set.__len__()}")
+    print(f"Test set length: {train_set.__len__()}")
     # print(f"Test set length: 1425")
+
+    train_loader = torch.utils.data.DataLoader(
+        train_set,
+        batch_size=flags['batch_size'],
+        shuffle=False,
+        pin_memory=True
+    )
 
     valid_loader = torch.utils.data.DataLoader(
         Test_set,
@@ -121,4 +129,5 @@ if __name__ == "__main__":
         pin_memory=True
     )
 
-    evaluate_fn(valid_loader)
+    # evaluate_fn(valid_loader)
+    evaluate_fn(train_loader)

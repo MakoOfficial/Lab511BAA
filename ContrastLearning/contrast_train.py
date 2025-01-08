@@ -22,21 +22,21 @@ warnings.filterwarnings("ignore")
 
 flags = {}
 flags['lr'] = 5e-4
-flags['batch_size'] = 32
+flags['batch_size'] = 96
 flags['num_workers'] = 8
 flags['num_epochs'] = 100
 flags['data_dir'] = '../archive'
 flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = '../../autodl-tmp/KD_All_Output_3090'
-flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7'
-flags['node'] = 'WCL增加性别信息，使得女性的惩罚力度更大，能缩小男女损失的相对差距就算成功'
+flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96_Gate'
+flags['node'] = '在增加性别分别的前提下，增加门控机制'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
 flags['weight_decay'] = 0
 flags['best_loss'] = 0
-flags['triple_loss_0_lambda'] = 0.4
-flags['triple_loss_1_lambda'] = 0.4
+flags['triple_loss_0_lambda'] = 0.1
+flags['triple_loss_1_lambda'] = 0.1
 flags['WCL_setting'] = dict(p=0.5, tempS=1, thresholdS=0.1, tempW=0.2)
 
 

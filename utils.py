@@ -610,3 +610,7 @@ def scale_loss(label, male, male_distribute, female_distribute):
 #     male = torch.tensor([1, 1, 1, 1, 0, 0, 0, 0])
 #     print(scale_loss(loss, label, male, label_male, label_female))
 
+def l1_loss(pred, boneage):
+    p = 0.5864
+    new_pred = (pred - boneage) * p + boneage
+    return new_pred, torch.abs(boneage - new_pred)

@@ -19,7 +19,7 @@ data_dir = "E:/code/Dataset/RSNA"
 csv_map = {
     "Origin": '../Result_csv/original/new/未蒸馏5.17.csv',
     "KD": '../Result_csv/original/new/蒸馏Res50_4.39.csv',
-    "Contrast Learning": '../KD_All_Output/TSNE_Merge_4K_1_6_after_100epoch/TSNE_3.86.csv'
+    "Contrast Learning": '../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96_200epoch/Contrast_Gender_96_train.csv'
 }
 
 
