@@ -26,15 +26,44 @@ class GatingBlock(nn.Module):
     def __init__(self, in_planes):
         super(GatingBlock, self).__init__()
 
-        self.fc1 = nn.Linear(in_planes, in_planes, bias=False)
-        self.fc2 = nn.Linear(in_planes, in_planes, bias=False)
-        self.relu = nn.ReLU()
-        self.sigmoid = nn.Sigmoid()
+        self.fc1 = nn.Sequential(
+            nn.Linear(in_planes, 2*in_planes, bias=True),
+            nn.BatchNorm1d(2*in_planes),
+            nn.ReLU(),
+            nn.Linear(2*in_planes, in_planes, bias=True)
+        )
+        self.fc2 = nn.Sequential(
+            nn.Linear(in_planes, 2 * in_planes, bias=True),
+            nn.BatchNorm1d(2 * in_planes),
+            nn.ReLU(),
+            nn.Linear(2 * in_planes, in_planes, bias=True),
+            nn.Sigmoid()
+        )
 
     def forward(self, x):
-        v = self.relu(self.fc1(x))
-        g = self.sigmoid(self.relu(self.fc2(x)))
+        v = self.fc1(x)
+        g = self.fc2(x)
         out = g * v
+        return x + out
+
+class GatingBlock_2(nn.Module):
+    def __init__(self, in_planes):
+        super(GatingBlock_2, self).__init__()
+
+        self.W_x = nn.Sequential(
+            nn.Linear(in_planes, in_planes, bias=True),
+            nn.BatchNorm1d(in_planes)
+        )
+        self.W_g = nn.Sequential(
+            nn.Linear(in_planes, in_planes, bias=True),
+            nn.BatchNorm1d(in_planes),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        v = self.W_x(x)
+        g = self.W_g(x)
+        out = v * g
         return x + out
 
 

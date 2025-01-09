@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 
 from datasets import RSNATestDataset, DHADataset
-from utils import log_valid_result_to_csv, save_attn_all, save_attn_all_KD, log_valid_result_logits_to_csv, l1_loss
+from utils import log_valid_result_to_csv, save_attn_all, save_attn_all_KD, log_valid_result_logits_to_csv, l1_loss, show_attn_all_KD
 
 from Student.student_model import get_student, get_student_res18
 from ContrastLearning.contrast_model import get_student_contrast_model
@@ -21,9 +21,9 @@ flags['num_workers'] = 8
 flags['data_dir'] = '../../Dataset/RSNA'
 flags['DHA_dir'] = 'E:/code/Dataset/DHA/Digital Hand Atlas'
 flags['student_path'] = "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['contrast_path'] = "../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96.bin"
+flags['contrast_path'] = "../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96_Gate_BN/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96_Gate_BN.bin"
 
-flags['csv_name'] = "Contrast_Gender_96_train.csv"
+flags['csv_name'] = "Contrast_Gender_96_Gate_BN_valid.csv"
 flags['DHA_option'] = False
 
 
@@ -58,7 +58,9 @@ def evaluate_fn(val_loader):
 
             log_valid_result_to_csv(id, label.cpu(), gender.cpu(), y_pred.cpu(), batch_loss.cpu(), log_path)
             # log_valid_result_logits_to_csv(id, label.cpu(), gender.cpu(), y_pred.cpu(), batch_loss.cpu(), logits_list.cpu(), log_path)
-            # save_attn_all_KD(s1, s2, s3, s4, id, ckp_dir)
+            # save_attn_all_KD(s1[5], s2[5], s3[5], s4[5], id[5], ckp_dir)
+            show_attn_all_KD(s1[5], s2[5], s3[5], s4[5], id[5], ckp_dir)
+            break
     mae_loss = mae_loss / val_total_size
     print(f"valid loss: {mae_loss}")
 
@@ -84,6 +86,7 @@ if __name__ == "__main__":
 
     train_csv_ori = os.path.join(data_dir, "train_4K.csv")
     train_df_ori = pd.read_csv(train_csv_ori)
+    train_df = pd.read_csv(os.path.join(data_dir, "train.csv"))
     # train_merge_df = pd.read_csv("E:/code/Dataset/RSNA/train_merge.csv")
 
     if flags['DHA_option']:
@@ -110,8 +113,8 @@ if __name__ == "__main__":
     print(f"boneage_div is {boneage_div}")
     print(f'valid file save at {ckp_dir}')
 
-    train_set = valid_Dataset(train_df, train_path, boneage_mean, boneage_div)
-    Test_set = valid_Dataset(valid_df, valid_path, boneage_mean, boneage_div)
+    train_set = valid_Dataset(train_df, train_path, boneage_mean, boneage_div, 256)
+    Test_set = valid_Dataset(valid_df, valid_path, boneage_mean, boneage_div, 256)
     print(f"Test set length: {train_set.__len__()}")
     # print(f"Test set length: 1425")
 
@@ -129,5 +132,5 @@ if __name__ == "__main__":
         pin_memory=True
     )
 
-    # evaluate_fn(valid_loader)
-    evaluate_fn(train_loader)
+    evaluate_fn(valid_loader)
+    # evaluate_fn(train_loader)

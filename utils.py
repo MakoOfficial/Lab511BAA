@@ -420,6 +420,53 @@ def save_attn_all_KD(s1, s2, s3, s4, img_ids, save_path):
 
             plt.clf()
             plt.close('all')
+import pandas as pd
+def show_attn_all_KD(s1, s2, s3, s4, img_ids, save_path):
+    attn_path = os.path.join(save_path, "attn_dir")
+    os.makedirs(attn_path, exist_ok=True)
+    with torch.no_grad():
+        num_cols = 4
+        image_flat = s3.flatten()
+
+        # 对整个图片应用softmax
+        softmax_image_flat = F.softmax(image_flat, dim=0)
+
+        # 将结果重新reshape回原来的形状
+        softmax_image = softmax_image_flat.view(s3.shape)
+        """对于第i张图片"""
+        fig, axes = plt.subplots(1, num_cols, figsize=(15, 5))
+
+        axes[0].imshow(s1.squeeze().cpu().numpy(), cmap='viridis')
+        axes[0].set_title("attn_s1")
+        axes[0].axis('off')
+
+        axes[1].imshow(s2.squeeze().cpu().numpy(), cmap='viridis')
+        axes[1].set_title("attn_s2")
+        axes[1].axis('off')
+
+        axes[2].imshow(softmax_image.squeeze().cpu().numpy(), cmap='viridis')
+        axes[2].set_title("attn_s3")
+        axes[2].axis('off')
+
+        axes[3].imshow(s3.squeeze().cpu().numpy(), cmap='viridis')
+        axes[3].set_title("attn_s4")
+        axes[3].axis('off')
+        # 创建一个二维tensor示例
+
+        # 将tensor转换为DataFrame
+        df3 = pd.DataFrame(softmax_image.squeeze().cpu().numpy())
+        df4 = pd.DataFrame(s3.squeeze().cpu().numpy())
+
+        # 将表格保存为CSV文件
+        df3.to_csv(f'{int(img_ids)}s3.csv', index=False, header=False)
+        df4.to_csv(f'{int(img_ids)}s4.csv', index=False, header=False)
+
+        plt.tight_layout()
+        # plt.savefig(os.path.join(attn_path, save_name))
+        plt.show()
+
+        plt.clf()
+        plt.close('all')
 
 
 def KL_loss(p, q):
