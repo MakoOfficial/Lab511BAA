@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Dataset
 
-from datasets import RSNATrainDataset, RSNAValidDataset
+from datasets import RSNATrainDataset, RSNAValidDataset, RSNATrainNoNormDataset, RSNAValidNoNormDataset
 from utils import L1_penalty, log_losses_to_csv
 
 from Student.student_model import get_student, get_student_gate
@@ -26,8 +26,8 @@ flags['num_epochs'] = 50
 flags['image_size'] = 256
 flags['data_dir'] = '../archive'
 flags['save_path'] = '../../autodl-tmp/ResNet50'
-flags['node'] = '对比训练尺寸的差别'
-flags['model_name'] = 'ResNet50_256'
+flags['node'] = '删除年龄归一化'
+flags['model_name'] = 'ResNet50_256_NoNorm'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
@@ -110,8 +110,9 @@ def evaluate_fn(val_loader):
             label = data[1].cuda()
 
             class_feature, s1, s2, s3, s4 = student_model(image, gender)
-            y_pred = (class_feature * boneage_div) + boneage_mean  # 反归一化为原始标签
-            y_pred = y_pred.squeeze()
+            # y_pred = (class_feature * boneage_div) + boneage_mean  # 反归一化为原始标签
+            # y_pred = y_pred.squeeze()
+            y_pred = class_feature.squeeze()
             label = label.squeeze()
             batch_loss = F.l1_loss(y_pred, label, reduction='sum').item()
 
@@ -180,14 +181,16 @@ if __name__ == "__main__":
     valid_csv = os.path.join(data_dir, "valid.csv")
     valid_df = pd.read_csv(valid_csv)
 
-    boneage_mean = train_df['boneage'].mean()
-    boneage_div = train_df['boneage'].std()
-    print(f"boneage_mean is {boneage_mean}")
-    print(f"boneage_div is {boneage_div}")
+    # boneage_mean = train_df['boneage'].mean()
+    # boneage_div = train_df['boneage'].std()
+    # print(f"boneage_mean is {boneage_mean}")
+    # print(f"boneage_div is {boneage_div}")
     print(f'{save_path} start')
 
-    train_set = RSNATrainDataset(train_df, train_path, boneage_mean, boneage_div, flags['image_size'])
-    valid_set = RSNAValidDataset(valid_df, valid_path, boneage_mean, boneage_div, flags['image_size'])
+    # train_set = RSNATrainDataset(train_df, train_path, boneage_mean, boneage_div, flags['image_size'])
+    # valid_set = RSNAValidDataset(valid_df, valid_path, boneage_mean, boneage_div, flags['image_size'])
+    train_set = RSNATrainNoNormDataset(train_df, train_path, flags['image_size'])
+    valid_set = RSNAValidNoNormDataset(valid_df, valid_path, flags['image_size'])
     print(train_set.__len__())
 
     train_loader = torch.utils.data.DataLoader(

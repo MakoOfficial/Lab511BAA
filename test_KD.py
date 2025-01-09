@@ -7,9 +7,9 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 
 from datasets import RSNATestDataset, DHADataset
-from utils import log_valid_result_to_csv, save_attn_all, save_attn_all_KD, log_valid_result_logits_to_csv
+from utils import log_valid_result_to_csv, save_attn_all, save_attn_all_KD, log_valid_result_logits_to_csv, l1_loss
 
-from Student.student_model import get_student, get_student_res18
+from Student.student_model import get_student, get_student_res18, get_student_gate
 from ContrastLearning.contrast_model import get_student_contrast_model
 from Unet.UNets import get_Attn_Unet
 
@@ -22,11 +22,10 @@ flags['data_dir'] = '../Dataset/RSNA'
 flags['DHA_dir'] = 'E:/code/Dataset/DHA/Digital Hand Atlas'
 flags['teacher_path'] = "./ckp/Unet/unet_segmentation_Attn_UNet.pth"
 # flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['contrast_path'] = "./Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96_200epoch/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96_200epoch.bin"
 # flags['student_path'] = "./Student/baseline/Res50_All.bin"
 # flags['student_path'] = "./KD_All_Output/KD_Res18_3090/KD_Res18.bin"
-flags['student_path'] = "./KD_All_Output/TSNE_Merge_4K_1_6_after_100epoch/TSNE_Merge_4K_1_6_after_100epoch.bin"
-flags['csv_name'] = "TSNE.csv"
+flags['student_path'] = "./Student/baseline/ResNet50_Gate_256.bin"
+flags['csv_name'] = "Student_Gate_256_train4K.csv"
 flags['mask_option'] = False
 flags['DHA_option'] = False
 
@@ -68,7 +67,8 @@ def evaluate_fn(val_loader):
 
             # label_expand = expand_and_add_indices(label)
             # y_pred = y_pred.unsqueeze(1).repeat(1, 13)
-            batch_loss = F.l1_loss(y_pred, label, reduction='none')
+            y_pred, batch_loss = l1_loss(y_pred, label)
+            # batch_loss = F.l1_loss(y_pred, label, reduction='none')
             # mae_loss += batch_loss.sum(dim=0)
             mae_loss += batch_loss.sum().item()
             # logits_list = torch.norm(logits, p=2, dim=1)
@@ -96,7 +96,8 @@ if __name__ == "__main__":
     teacher.eval()
     #   prepare student model
     student_path = flags['student_path']
-    student_model = get_student().cuda()
+    # student_model = get_student().cuda()
+    student_model = get_student_gate().cuda()
     # student_model = get_student_res18().cuda()
     student_model.load_state_dict(torch.load(student_path), strict=True)
 
@@ -116,6 +117,9 @@ if __name__ == "__main__":
     train_csv = os.path.join(data_dir, "train.csv")
     train_df = pd.read_csv(train_csv)
 
+    ori_train_csv = os.path.join(data_dir, "train_4K.csv")
+    ori_train_df = pd.read_csv(ori_train_csv)
+
     if flags['DHA_option']:
         valid_csv = os.path.join(flags['DHA_dir'], "label.csv")
         valid_df = pd.read_csv(valid_csv)
@@ -132,16 +136,16 @@ if __name__ == "__main__":
     # boneage_mean = train_df['boneage'].mean()
     # boneage_div = train_df['boneage'].std()
 
-    boneage_mean = train_df['boneage'].mean()
-    boneage_div = train_df['boneage'].std()
+    boneage_mean = ori_train_df['boneage'].mean()
+    boneage_div = ori_train_df['boneage'].std()
 
 
     print(f"boneage_mean is {boneage_mean}")
     print(f"boneage_div is {boneage_div}")
     print(f'valid file save at {ckp_dir}')
 
-    train_set = valid_Dataset(train_df, train_path, boneage_mean, boneage_div)
-    Test_set = valid_Dataset(valid_df, valid_path, boneage_mean, boneage_div)
+    train_set = valid_Dataset(ori_train_df, train_path, boneage_mean, boneage_div, 256)
+    Test_set = valid_Dataset(valid_df, valid_path, boneage_mean, boneage_div, 256)
     print(f"Test set length: {Test_set.__len__()}")
     print(f"Train set length: {train_set.__len__()}")
     # print(f"Test set length: 1425")
@@ -162,4 +166,4 @@ if __name__ == "__main__":
         pin_memory=True
     )
 
-    evaluate_fn(valid_loader)
+    evaluate_fn(train_loader)

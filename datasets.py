@@ -46,6 +46,25 @@ class BaseDataset(Dataset):
     def __len__(self):
         return len(self.df)
 
+class NoNormDataset(Dataset):
+    def __init__(self, df, file_path):
+        def preprocess_df(df):
+            df['male'] = df['male'].astype('float32')
+            df['bonage'] = df['boneage'].astype('float32')
+            return df
+
+        self.df = preprocess_df(df)
+        self.file_path = file_path
+
+    def get_image_path(self, index):
+        row = self.df.iloc[index]
+        num = int(row['id'])
+        file_path = f"{self.file_path}/{num}.png"
+        return row, file_path
+
+    def __len__(self):
+        return len(self.df)
+
 
 class RSNATrainDataset(BaseDataset):
     def __init__(self, df, file_path, age_mean, age_div, img_size):
@@ -58,6 +77,19 @@ class RSNATrainDataset(BaseDataset):
         image = Image.open(image_path).convert('L')
 
         return (self.Trans(image), Tensor([row['male']])), row['zscore'], row['boneage']
+
+
+class RSNATrainNoNormDataset(NoNormDataset):
+    def __init__(self, df, file_path, img_size):
+        super().__init__(df, file_path)
+        self.img_size = img_size
+        self.Trans = get_train_transform(img_size)
+
+    def __getitem__(self, index):
+        row, image_path = self.get_image_path(index)
+        image = Image.open(image_path).convert('L')
+
+        return (self.Trans(image), Tensor([row['male']])), row['boneage']
 
 
 class RSNAMergeDataset(BaseDataset):
@@ -92,6 +124,19 @@ class RSNAValidDataset(BaseDataset):
         image = Image.open(image_path).convert('L')
 
         return (self.Trans(image), Tensor([row['male']])), row['boneage']
+
+
+class RSNAValidNoNormDataset(NoNormDataset):
+    def __init__(self, df, file_path, img_size):
+        super().__init__(df, file_path)
+        self.img_size = img_size
+        self.Trans = get_valid_transform(img_size)
+
+    def __getitem__(self, index):
+        row, image_path = self.get_image_path(index)
+        image = Image.open(image_path).convert('L')
+
+        return (self.Trans(image), Tensor([row['male']])), row['boneage'], row['id_int']
 
 
 class RSNATestDataset(BaseDataset):

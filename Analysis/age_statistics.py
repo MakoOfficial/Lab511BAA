@@ -17,8 +17,8 @@ data_dir = "E:/code/Dataset/RSNA"
 # }
 
 csv_map = {
-    "Origin": '../Result_csv/original/new/未蒸馏5.17.csv',
-    "KD": '../Result_csv/original/new/蒸馏Res50_4.39.csv',
+    "Origin": '../Student/baseline/Student_Gate_256_train4K.csv',
+    "KD": '../Student/baseline/Student_256.csv',
     "Contrast Learning": '../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96_Gate_BN_Large/Contrast_Gender_96_Gate_BN_train.csv'
 }
 
