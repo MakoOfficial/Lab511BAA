@@ -168,7 +168,8 @@ if __name__ == "__main__":
     save_path = os.path.join(flags['save_path'], model_name)
     os.makedirs(save_path, exist_ok=True)
     #   prepare student model
-    student_model = get_student().cuda()
+    # student_model = get_student().cuda()
+    student_model = get_student_gate().cuda()
     # student_model = get_student_res18().cuda()
     #   load data setting
     data_dir = flags['data_dir']

@@ -136,7 +136,7 @@ class RSNAValidNoNormDataset(NoNormDataset):
         row, image_path = self.get_image_path(index)
         image = Image.open(image_path).convert('L')
 
-        return (self.Trans(image), Tensor([row['male']])), row['boneage'], row['id_int']
+        return (self.Trans(image), Tensor([row['male']])), row['boneage']
 
 
 class RSNATestDataset(BaseDataset):
