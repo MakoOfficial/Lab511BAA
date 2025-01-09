@@ -14,7 +14,7 @@ from torch.utils.data import Dataset
 from datasets import RSNATrainDataset, RSNAValidDataset
 from utils import L1_penalty, log_losses_to_csv
 
-from Student.student_model import get_student
+from Student.student_model import get_student, get_student_gate
 
 warnings.filterwarnings("ignore")
 
@@ -186,7 +186,7 @@ if __name__ == "__main__":
     print(f"boneage_div is {boneage_div}")
     print(f'{save_path} start')
 
-    train_set = RSNATrainDataset(train_df, data_dir, boneage_mean, boneage_div, flags['image_size'])
+    train_set = RSNATrainDataset(train_df, train_path, boneage_mean, boneage_div, flags['image_size'])
     valid_set = RSNAValidDataset(valid_df, valid_path, boneage_mean, boneage_div, flags['image_size'])
     print(train_set.__len__())
 
