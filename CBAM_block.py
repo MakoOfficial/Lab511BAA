@@ -50,3 +50,27 @@ class CBAM(nn.Module):
         attn_sa = self.sa(out)
         result = out * attn_sa
         return result, attn_sa
+
+
+class GatingBlock(nn.Module):
+    def __init__(self, in_planes):
+        super(GatingBlock, self).__init__()
+
+        self.W_v = nn.Sequential(
+            nn.Linear(in_planes, in_planes, bias=True),
+            nn.BatchNorm1d(in_planes),
+            nn.ReLU(),
+            nn.Linear(in_planes, 1, bias=True)
+        )
+        self.W_g = nn.Sequential(
+            nn.Linear(in_planes, in_planes // 2, bias=True),
+            nn.BatchNorm1d(in_planes // 2),
+            nn.ReLU(),
+            nn.Linear(in_planes // 2, 1, bias=True),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        v = self.W_v(x)
+        g = self.W_g(x)
+        return v * g

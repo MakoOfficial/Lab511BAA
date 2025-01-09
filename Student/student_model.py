@@ -356,8 +356,8 @@ if __name__ == '__main__':
     # x, attn0, attn1, attn2, attn3 = student_res18(data, gender)
     # print(f"x: {x.shape}\nattn0: {attn0.shape}\nattn1: {attn1.shape}\nattn2: {attn2.shape}\nattn3: {attn3.shape}\n")
 
-    student_GCN_Model = get_student_GCN("../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin").cuda()
-    print(f"student_GCN_Model: {sum(p.nelement() for p in student_GCN_Model.parameters() if p.requires_grad == True) / 1e6}M")
-    x, attn0, attn1, attn2, attn3 = student_GCN_Model(data, gender)
-    print(f"x: {x.shape}\nattn0: {attn0.shape}\nattn1: {attn1.shape}\nattn2: {attn2.shape}\nattn3: {attn3.shape}\n")
+    # student_GCN_Model = get_student_GCN("../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin").cuda()
+    # print(f"student_GCN_Model: {sum(p.nelement() for p in student_GCN_Model.parameters() if p.requires_grad == True) / 1e6}M")
+    # x, attn0, attn1, attn2, attn3 = student_GCN_Model(data, gender)
+    # print(f"x: {x.shape}\nattn0: {attn0.shape}\nattn1: {attn1.shape}\nattn2: {attn2.shape}\nattn3: {attn3.shape}\n")
 

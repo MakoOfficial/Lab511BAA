@@ -25,6 +25,7 @@ flags['lr'] = 5e-4
 flags['batch_size'] = 96
 flags['num_workers'] = 8
 flags['num_epochs'] = 100
+flags['img_size'] = 256
 flags['data_dir'] = '../archive'
 flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = '../../autodl-tmp/KD_All_Output_3090'
@@ -230,9 +231,9 @@ if __name__ == "__main__":
     print(f"boneage_div is {boneage_div}")
     print(f'{save_path} start')
 
-    train_set = RSNATrainDataset(train_df, train_path, boneage_mean, boneage_div)
-    valid_set = RSNAValidDataset(valid_df, valid_path, boneage_mean, boneage_div)
-    test_set = RSNAValidDataset(test_df, valid_path, boneage_mean, boneage_div)
+    train_set = RSNATrainDataset(train_df, train_path, boneage_mean, boneage_div, flags['img_size'])
+    valid_set = RSNAValidDataset(valid_df, valid_path, boneage_mean, boneage_div, flags['img_size'])
+    test_set = RSNAValidDataset(test_df, valid_path, boneage_mean, boneage_div, flags['img_size'])
 
     print(train_set.__len__())
 

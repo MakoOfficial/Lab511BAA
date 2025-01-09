@@ -6,7 +6,7 @@ from Student.student_model import get_student
 from torchvision.models import resnet50, resnet18
 from ContrastLearning.vit_model_old import getViTBlock
 from Unet.UNets import Attention_block
-from CBAM_block import CBAM
+from CBAM_block import CBAM, GatingBlock
 
 def get_pretrained_resnet50(pretrained=True):
     model = resnet50(pretrained=pretrained)
@@ -20,51 +20,6 @@ def get_pretrained_resnet18(pretrained=True):
     output_channels = model.fc.in_features
     model = list(model.children())[:-2]
     return model, output_channels
-
-
-class GatingBlock(nn.Module):
-    def __init__(self, in_planes):
-        super(GatingBlock, self).__init__()
-
-        self.fc1 = nn.Sequential(
-            nn.Linear(in_planes, 2*in_planes, bias=True),
-            nn.BatchNorm1d(2*in_planes),
-            nn.ReLU(),
-            nn.Linear(2*in_planes, in_planes, bias=True)
-        )
-        self.fc2 = nn.Sequential(
-            nn.Linear(in_planes, 2 * in_planes, bias=True),
-            nn.BatchNorm1d(2 * in_planes),
-            nn.ReLU(),
-            nn.Linear(2 * in_planes, in_planes, bias=True),
-            nn.Sigmoid()
-        )
-
-    def forward(self, x):
-        v = self.fc1(x)
-        g = self.fc2(x)
-        out = g * v
-        return x + out
-
-class GatingBlock_2(nn.Module):
-    def __init__(self, in_planes):
-        super(GatingBlock_2, self).__init__()
-
-        self.W_x = nn.Sequential(
-            nn.Linear(in_planes, in_planes, bias=True),
-            nn.BatchNorm1d(in_planes)
-        )
-        self.W_g = nn.Sequential(
-            nn.Linear(in_planes, in_planes, bias=True),
-            nn.BatchNorm1d(in_planes),
-            nn.Sigmoid()
-        )
-
-    def forward(self, x):
-        v = self.W_x(x)
-        g = self.W_g(x)
-        out = v * g
-        return x + out
 
 
 class Contrast_Model(nn.Module):
@@ -437,10 +392,10 @@ class Student_Contrast_Model(nn.Module):
         for i in range(len(self.fc)):
             x = self.fc[i](x)
             if i == 5:
-                x = self.gate(x)
+                bias = self.gate(x)
         # x = self.fc(x)
 
-        return x, cls_token2, cls_token3, attn0, attn1, attn2, attn3
+        return x + bias, cls_token2, cls_token3, attn0, attn1, attn2, attn3
 
     def freeze_params(self):
         for _, param in self.backbone0.named_parameters():
