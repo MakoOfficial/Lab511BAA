@@ -1,210 +1,177 @@
-import os
-import random
-import time
-import warnings
-
-import numpy as np
-import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.optim.lr_scheduler import StepLR
-from torch.utils.data import Dataset
-
-from datasets import RSNATrainDataset, RSNAValidDataset
-from utils import L1_penalty, log_losses_to_csv
-
-from Student.student_model import get_student
-
-warnings.filterwarnings("ignore")
-
-flags = {}
-flags['lr'] = 1e-3
-flags['batch_size'] = 32
-flags['num_workers'] = 8
-flags['num_epochs'] = 100
-flags['data_dir'] = 'D:/BoneAgeAssessment/RSNA'
-flags['teacher_path'] = "ckp/Unet/unet_segmentation_Attn_UNet.pth"
-flags['save_path'] = './KD_Output'
-flags['model_name'] = 'KD_modify_firstConv_RandomCrop'
-flags['seed'] = 1
-flags['lr_decay_step'] = 10
-flags['lr_decay_ratio'] = 0.8
-flags['weight_decay'] = 0
-flags['best_loss'] = 0
-flags['mask_option'] = False
-flags['attn_loss_ratio'] = 40
-
-seed = flags['seed']
-torch.manual_seed(seed)
-torch.cuda.manual_seed(seed)  # 让显卡产生的随机数一致
-torch.cuda.manual_seed_all(seed)  # 多卡模式下，让所有显卡生成的随机数一致？这个待验证
-np.random.seed(seed)  # numpy产生的随机数一致
-random.seed(seed)
-
-# CUDA中的一些运算，如对sparse的CUDA张量与dense的CUDA张量调用torch.bmm()，它通常使用不确定性算法。
-# 为了避免这种情况，就要将这个flag设置为True，让它使用确定的实现。
-torch.backends.cudnn.deterministic = True
-
-# 设置这个flag可以让内置的cuDNN的auto-tuner自动寻找最适合当前配置的高效算法，来达到优化运行效率的问题。
-# 但是由于噪声和不同的硬件条件，即使是同一台机器，benchmark都可能会选择不同的算法。为了消除这个随机性，设置为 False
-torch.backends.cudnn.benchmark = False
+from CBAM_block import CBAM, GatingBlock_Class
+from torchvision.models import resnet50, resnet18
 
 
-def train_fn(train_loader, loss_fn, optimizer):
-    '''
-    checkpoint is a dict
-    '''
-
-    student_model.train()
-    training_loss = 0
-    total_size = 0
-    for idx, data in enumerate(train_loader):
-        image, gender = data[0]
-        image = image.type(torch.FloatTensor).cuda()
-        gender = gender.type(torch.FloatTensor).cuda()
-
-        batch_size = len(data[1])
-        label = data[1].type(torch.FloatTensor).cuda()
-
-        # zero the parameter gradients
-        optimizer.zero_grad()
-
-        # forward
-        # firstly, get attention map from teacher model
-        class_feature, s1, s2, s3, s4 = student_model(image, gender)
-        y_pred = class_feature.squeeze()
-        label = label.squeeze()
-
-        loss = loss_fn(y_pred, label)
-
-        # backward,calculate gradients
-        penalty_loss = L1_penalty(student_model, 1e-5)
-        total_loss = loss + penalty_loss
-        total_loss.backward()
-
-        # backward,update parameter
-        optimizer.step()
-        batch_loss = loss.item()
-        # print(f"batch_loss: {batch_loss}, batch_attn_loss: {penalty_loss.item()}")
-
-        training_loss += batch_loss
-        total_size += batch_size
-
-    return training_loss, total_size
+def get_pretrained_resnet50(pretrained=True):
+    model = resnet50(pretrained=pretrained)
+    output_channels = model.fc.in_features
+    model = list(model.children())[:-2]
+    return model, output_channels
 
 
-def evaluate_fn(val_loader):
-    student_model.eval()
-
-    mae_loss = 0
-    val_total_size = 0
-    with torch.no_grad():
-        for batch_idx, data in enumerate(val_loader):
-            val_total_size += len(data[1])
-
-            image, gender = data[0]
-            image = image.type(torch.FloatTensor).cuda()
-            gender = gender.type(torch.FloatTensor).cuda()
-
-            label = data[1].cuda()
-
-            class_feature, s1, s2, s3, s4 = student_model(image, gender)
-            y_pred = (class_feature * boneage_div) + boneage_mean  # 反归一化为原始标签
-            y_pred = y_pred.squeeze()
-            label = label.squeeze()
-            batch_loss = F.l1_loss(y_pred, label, reduction='sum').item()
-
-            mae_loss += batch_loss
-
-    return mae_loss, val_total_size
+def get_pretrained_resnet18(pretrained=True):
+    model = resnet18(pretrained=pretrained)
+    output_channels = model.fc.in_features
+    model = list(model.children())[:-2]
+    return model, output_channels
 
 
-def training_start(flags):
-    ## Network, optimizer, and loss function creation
-    best_loss = float('inf')
-    loss_fn = nn.L1Loss(reduction='sum')
+class Student_Model_Class(nn.Module):
+    def __init__(self, gender_encode_length, backbone, out_channels):
+        super(Student_Model_Class, self).__init__()
+        self.out_channels = out_channels
+        self.backbone0 = nn.Sequential(*backbone[0:5])
+        self.backbone0[0] = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.attn0 = CBAM(in_planes=256, ratio=8, kernel_size=3)
+        self.backbone1 = backbone[5]
+        self.attn1 = CBAM(in_planes=512, ratio=8, kernel_size=3)
+        self.backbone2 = backbone[6]
+        self.attn2 = CBAM(in_planes=1024, ratio=16, kernel_size=3)
+        self.backbone3 = backbone[7]
+        self.attn3 = CBAM(in_planes=2048, ratio=16, kernel_size=3)
 
-    optimizer = torch.optim.Adam(student_model.parameters(), lr=flags['lr'], weight_decay=flags['weight_decay'])
-    scheduler = StepLR(optimizer, step_size=flags['lr_decay_step'], gamma=flags['lr_decay_ratio'])
+        self.gender_encoder = nn.Linear(1, gender_encode_length)
+        self.gender_bn = nn.BatchNorm1d(gender_encode_length)
 
-    ## Trains
-    for epoch in range(flags['num_epochs']):
-        print(f"epoch {epoch + 1}")
+        self.fc = nn.Sequential(
+            nn.Linear(out_channels + gender_encode_length, 1024),
+            nn.BatchNorm1d(1024),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(1024, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(512, 228)
+        )
 
-        ## Training
-        start_time = time.time()
-        training_loss, total_size = train_fn(train_loader, loss_fn, optimizer)
+    def forward(self, image, gender):
+        x0, attn0 = self.attn0(self.backbone0(image))
+        x1, attn1 = self.attn1(self.backbone1(x0))
+        x2, attn2 = self.attn2(self.backbone2(x1))
+        x3, attn3 = self.attn3(self.backbone3(x2))
 
-        ## Evaluation
-        # Sets net to eval and no grad context
-        valid_mae_loss, val_total_size = evaluate_fn(valid_loader)
+        x = F.adaptive_avg_pool2d(x3, 1)
+        x = torch.squeeze(x)
+        x = x.view(-1, self.out_channels)
 
-        training_mean_loss = training_loss / total_size
-        valid_mean_mae = valid_mae_loss / val_total_size
-        if valid_mean_mae < best_loss:
-            best_loss = valid_mean_mae
-            torch.save(student_model.state_dict(), '/'.join([save_path, f'{model_name}.bin']))
-            flags['best_loss'] = best_loss
-            with open(os.path.join(save_path, 'setting.txt'), 'w') as f:
-                f.writelines('------------------ start ------------------' + '\n')
-                for eachArg, value in flags.items():
-                    f.writelines(eachArg + ' : ' + str(value) + '\n')
-                f.writelines('------------------- end -------------------')
+        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))
 
-        log_losses_to_csv(training_mean_loss, 0,
-                          valid_mean_mae, 0,
-                          time.time() - start_time,
-                          optimizer.param_groups[0]["lr"], os.path.join(save_path, "classifier_loss.csv"))
-        scheduler.step()
+        x = torch.cat([x, gender_encode], dim=1)
 
-    print(f'best loss: {best_loss}')
+        x = self.fc(x)
+
+        return x, attn0, attn1, attn2, attn3
 
 
-if __name__ == "__main__":
-    # set save dir of this train
-    model_name = flags['model_name']
-    save_path = os.path.join(flags['save_path'], model_name)
-    os.makedirs(save_path, exist_ok=True)
-    #   prepare student model
-    student_model = get_student().cuda()
-    student_model.train()
-    #   load data setting
-    data_dir = flags['data_dir']
+class Student_Model_Gate_Class(nn.Module):
+    def __init__(self, gender_encode_length, backbone, out_channels):
+        super(Student_Model_Gate_Class, self).__init__()
+        self.out_channels = out_channels
+        self.backbone0 = nn.Sequential(*backbone[0:5])
+        self.backbone0[0] = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.attn0 = CBAM(in_planes=256, ratio=8, kernel_size=3)
+        self.backbone1 = backbone[5]
+        self.attn1 = CBAM(in_planes=512, ratio=8, kernel_size=3)
+        self.backbone2 = backbone[6]
+        self.attn2 = CBAM(in_planes=1024, ratio=16, kernel_size=3)
+        self.backbone3 = backbone[7]
+        self.attn3 = CBAM(in_planes=2048, ratio=16, kernel_size=3)
 
-    train_path = os.path.join(data_dir, "train")
-    valid_path = os.path.join(data_dir, "valid")
+        self.gender_encoder = nn.Linear(1, gender_encode_length)
+        self.gender_bn = nn.BatchNorm1d(gender_encode_length)
 
-    train_csv = os.path.join(data_dir, "train_2K.csv")
-    train_df = pd.read_csv(train_csv)
-    valid_csv = os.path.join(data_dir, "valid.csv")
-    valid_df = pd.read_csv(valid_csv)
+        self.fc = nn.Sequential(
+            nn.Linear(out_channels + gender_encode_length, 1024),
+            nn.BatchNorm1d(1024),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(1024, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(512, 228)
+        )
 
-    boneage_mean = train_df['boneage'].mean()
-    boneage_div = train_df['boneage'].std()
-    print(f"boneage_mean is {boneage_mean}")
-    print(f"boneage_div is {boneage_div}")
-    print(f'{save_path} start')
+        self.gate = GatingBlock_Class(512)
 
-    train_set = RSNATrainDataset(train_df, train_path, boneage_mean, boneage_div)
-    valid_set = RSNAValidDataset(valid_df, valid_path, boneage_mean, boneage_div)
-    print(train_set.__len__())
+    def forward(self, image, gender):
+        x0, attn0 = self.attn0(self.backbone0(image))
+        x1, attn1 = self.attn1(self.backbone1(x0))
+        x2, attn2 = self.attn2(self.backbone2(x1))
+        x3, attn3 = self.attn3(self.backbone3(x2))
 
-    train_loader = torch.utils.data.DataLoader(
-        train_set,
-        batch_size=flags['batch_size'],
-        shuffle=True,
-        num_workers=flags['num_workers'],
-        drop_last=False,
-        pin_memory=True,
-    )
+        x = F.adaptive_avg_pool2d(x3, 1)
+        x = torch.squeeze(x)
+        x = x.view(-1, self.out_channels)
 
-    valid_loader = torch.utils.data.DataLoader(
-        valid_set,
-        batch_size=flags['batch_size'],
-        shuffle=False,
-        num_workers=flags['num_workers'],
-        pin_memory=True
-    )
+        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))
 
-    training_start(flags)
+        x = torch.cat([x, gender_encode], dim=1)
+
+        # x = self.fc(x)
+        for i in range(len(self.fc)):
+            x = self.fc[i](x)
+            if i == 5:
+                bias = self.gate(x)
+
+        return x + bias, attn0, attn1, attn2, attn3
+
+
+class Student_Model_Res18_Class(nn.Module):
+    def __init__(self, gender_encode_length, backbone, out_channels):
+        super(Student_Model_Res18_Class, self).__init__()
+        self.out_channels = out_channels
+        self.backbone0 = nn.Sequential(*backbone[0:5])
+        self.backbone0[0] = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.attn0 = CBAM(in_planes=64, ratio=2, kernel_size=3)
+        self.backbone1 = backbone[5]
+        self.attn1 = CBAM(in_planes=128, ratio=2, kernel_size=3)
+        self.backbone2 = backbone[6]
+        self.attn2 = CBAM(in_planes=256, ratio=4, kernel_size=3)
+        self.backbone3 = backbone[7]
+        self.attn3 = CBAM(in_planes=512, ratio=4, kernel_size=3)
+
+        self.gender_encoder = nn.Linear(1, gender_encode_length)
+        self.gender_bn = nn.BatchNorm1d(gender_encode_length)
+
+        self.fc = nn.Sequential(
+            nn.Linear(out_channels + gender_encode_length, 1024),
+            nn.BatchNorm1d(1024),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(1024, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(512, 1)
+        )
+
+    def forward(self, image, gender):
+        x0, attn0 = self.attn0(self.backbone0(image))
+        x1, attn1 = self.attn1(self.backbone1(x0))
+        x2, attn2 = self.attn2(self.backbone2(x1))
+        x3, attn3 = self.attn3(self.backbone3(x2))
+
+        x = F.adaptive_avg_pool2d(x3, 1)
+        x = torch.squeeze(x)
+        x = x.view(-1, self.out_channels)
+
+        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))
+
+        x = torch.cat([x, gender_encode], dim=1)
+
+        x = self.fc(x)
+
+        return x, attn0, attn1, attn2, attn3
+
+
+def get_student_class(pretrained=True):
+    return Student_Model_Class(32, *get_pretrained_resnet50(pretrained=pretrained))
+
+
+def get_student_gate_class(pretrained=True):
+    return Student_Model_Gate_Class(32, *get_pretrained_resnet50(pretrained=pretrained))
