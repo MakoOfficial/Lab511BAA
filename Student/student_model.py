@@ -101,6 +101,70 @@ class Student_Model(nn.Module):
         return linear_out, 0, 0
 
 
+class Student_Squeeze_Model(nn.Module):
+    def __init__(self, gender_encode_length, backbone, out_channels):
+        super(Student_Squeeze_Model, self).__init__()
+        self.out_channels = out_channels
+        self.backbone0 = nn.Sequential(*backbone[0:5])
+        self.backbone0[0] = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.attn0 = CBAM(in_planes=256, ratio=8, kernel_size=3)
+        self.backbone1 = backbone[5]
+        self.attn1 = CBAM(in_planes=512, ratio=8, kernel_size=3)
+        self.backbone2 = backbone[6]
+        self.attn2 = CBAM(in_planes=1024, ratio=16, kernel_size=3)
+        self.backbone3 = backbone[7]
+        self.attn3 = CBAM(in_planes=2048, ratio=16, kernel_size=3)
+
+        self.gender_encoder = nn.Linear(1, gender_encode_length)
+        self.gender_bn = nn.BatchNorm1d(gender_encode_length)
+
+        self.down = nn.Sequential(
+            nn.Linear(out_channels + gender_encode_length, 1024),
+            nn.BatchNorm1d(1024),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(1024, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512, 128),
+        )
+        # 拿这个128维的特征去做对比损失
+        self.decoder = nn.Sequential(
+            nn.Linear(128, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512, 512),
+        )
+
+        self.fc = nn.Sequential(
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512, 1)
+        )
+
+    def forward(self, image, gender):
+        x0, attn0 = self.attn0(self.backbone0(image))
+        x1, attn1 = self.attn1(self.backbone1(x0))
+        x2, attn2 = self.attn2(self.backbone2(x1))
+        x3, attn3 = self.attn3(self.backbone3(x2))
+
+        x = F.adaptive_avg_pool2d(x3, 1)
+        x = torch.squeeze(x)
+        x = x.view(-1, self.out_channels)
+
+        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))
+
+        x = torch.cat([x, gender_encode], dim=1)
+
+        x = self.down(x)
+        squeeze_feature = x
+
+        x = self.decoder(x)
+        x = self.fc(x)
+
+        return x, squeeze_feature, attn0, attn1, attn2, attn3
+
+
 class Student_Model_OnlyKD(nn.Module):
     def __init__(self, backbone):
         super(Student_Model_OnlyKD, self).__init__()
@@ -266,13 +330,6 @@ class Student_Model_Res18(nn.Module):
 
         return x, attn0, attn1, attn2, attn3
 
-    def count_params(self):
-        num_params = sum(p.nelement() for p in self.backbone0.parameters() if p.requires_grad == True)
-        num_params += sum(p.nelement() for p in self.attn0.parameters() if p.requires_grad == True)
-        num_params += sum(p.nelement() for p in self.backbone1.parameters() if p.requires_grad == True)
-        num_params += sum(p.nelement() for p in self.attn1.parameters() if p.requires_grad == True)
-
-        return num_params
 
 
 # 邻接矩阵的自注意力机制 ，所需参数：特征尺寸，注意力尺寸
@@ -394,6 +451,10 @@ class GAT(nn.Module):
 
 def get_student(pretrained=True):
     return Student_Model(32, *get_pretrained_resnet50(pretrained=pretrained))
+
+
+def get_student_squeeze(pretrained=True):
+    return Student_Squeeze_Model(32, *get_pretrained_resnet50(pretrained=pretrained))
 
 
 def get_student_gate(pretrained=True):

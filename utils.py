@@ -441,6 +441,7 @@ def save_attn_all_KD(s1, s2, s3, s4, img_ids, save_path):
 
             plt.clf()
             plt.close('all')
+
 import pandas as pd
 def show_attn_all_KD(s1, s2, s3, s4, img_ids, save_path):
     attn_path = os.path.join(save_path, "attn_dir")
