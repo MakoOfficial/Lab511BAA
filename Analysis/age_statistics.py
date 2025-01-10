@@ -17,7 +17,7 @@ data_dir = "E:/code/Dataset/RSNA"
 # }
 
 csv_map = {
-    "Classify": '../Contrast_Output/Contrast_Class/Contrast_Gender_96_valid_Class.csv',
+    "Classify": '../Student/baseline/ResNet50_256_Squeeze_4K/ResNet50_256_Squeeze_4K_valid.csv',
     "Soft Label": '../Student/baseline/ResNet50_Class_256_Full/Student_256_valid_Class_Softmax.csv',
     "Regression": '../Student/baseline/ResNet50_Class_256_Full/Student_256_valid_Class.csv'
 }

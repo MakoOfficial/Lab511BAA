@@ -437,6 +437,73 @@ class Student_Contrast_Model(nn.Module):
         return linear_out, cls_token2, cls_token3, cls_token2_before, cls_token3_before
 
 
+
+class Student_Contrast_Model_End2End(nn.Module):
+    def __init__(self, backbone_res):
+        super(Student_Contrast_Model_End2End, self).__init__()
+        # self.out_channels = out_channels
+        self.backbone0 = nn.Sequential(*backbone_res[0:5])
+        self.backbone0[0] = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.attn0 = CBAM(in_planes=256, ratio=8, kernel_size=3)
+        self.backbone1 = backbone_res[5]
+        self.attn1 = CBAM(in_planes=512, ratio=8, kernel_size=3)
+
+        self.backbone2 = backbone_res[6]
+        # self.adj_learning0 = CNNAttention(1024, 768, 32)
+        self.adj_learning0 = AdaA(1024, 768, 32)
+        self.backbone3 = backbone_res[7]
+        # self.adj_learning1 = CNNAttention(2048, 768, 16)
+        self.adj_learning1 = AdaA(2048, 768, 16)
+
+        self.gender_encoder = nn.Linear(1, 32)
+        self.gender_bn = nn.BatchNorm1d(32)
+
+        self.fc = nn.Sequential(
+            nn.Linear(2048 + 32, 1024),
+            nn.BatchNorm1d(1024),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(1024, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(512, 1)
+        )
+
+        self.cls_Embedding_0 = nn.Sequential(
+            nn.Linear(1024, 512),
+            nn.ReLU(),
+            # nn.BatchNorm1d(512),
+            nn.Linear(512, 1024)
+        )
+
+        self.cls_Embedding_1 = nn.Sequential(
+            nn.Linear(2048, 512),
+            nn.ReLU(),
+            # nn.BatchNorm1d(512),
+            nn.Linear(512, 1024)
+        )
+
+    def forward(self, image, gender):
+        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender))) # B * 32
+        x0, attn0 = self.attn0(self.backbone0(image))
+        x1, attn1 = self.attn1(self.backbone1(x0))
+        x2, cls_token2, attn2 = self.adj_learning0(self.backbone2(x1), gender_encode)
+        x3, cls_token3, attn3 = self.adj_learning1(self.backbone3(x2), gender_encode)
+
+        x = F.adaptive_avg_pool2d(x3, 1)
+        x = torch.flatten(x, 1)
+
+        x = torch.cat([x, gender_encode], dim=1)
+
+        cls_token2 = F.normalize(self.cls_Embedding_0(cls_token2), dim=1)
+        cls_token3 = F.normalize(self.cls_Embedding_1(cls_token3), dim=1)
+
+        x = self.fc(x)
+
+        return x, cls_token2, cls_token3, attn0, attn1, attn2, attn3
+
+
 class Student_Contrast_Model_Class(nn.Module):
     def __init__(self, backbone, backbone_res):
         super(Student_Contrast_Model_Class, self).__init__()
@@ -556,6 +623,12 @@ def get_student_contrast_class_model(student_path):
     resnet, output_channels = get_pretrained_resnet50(True)
 
     return Student_Contrast_Model_Class(backbone, resnet)
+
+
+def get_student_contrast_model_End2End():
+    resnet, output_channels = get_pretrained_resnet50(True)
+
+    return Student_Contrast_Model_End2End(resnet)
 
 # def get_only_contrast_model(student_path):
 #     backbone = get_student()

@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 from datasets import RSNATestDataset, DHADataset
 from utils import log_valid_result_to_csv, save_attn_all, save_attn_all_KD, log_valid_result_logits_to_csv, l1_loss
 
-from Student.student_model import get_student, get_student_res18, get_student_gate
+from Student.student_model import get_student, get_student_res18, get_student_gate, get_student_squeeze
 from ContrastLearning.contrast_model import get_student_contrast_model
 from Unet.UNets import get_Attn_Unet
 
@@ -24,8 +24,8 @@ flags['teacher_path'] = "./ckp/Unet/unet_segmentation_Attn_UNet.pth"
 # flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 # flags['student_path'] = "./Student/baseline/Res50_All.bin"
 # flags['student_path'] = "./KD_All_Output/KD_Res18_3090/KD_Res18.bin"
-flags['student_path'] = "./Student/baseline/ResNet50_Gate_256.bin"
-flags['csv_name'] = "Student_Gate_256_train4K.csv"
+flags['student_path'] = "./Student/baseline/ResNet50_256_Squeeze_4K/ResNet50_256_Squeeze_4K.bin"
+flags['csv_name'] = "ResNet50_256_Squeeze_4K_valid.csv"
 flags['mask_option'] = False
 flags['DHA_option'] = False
 
@@ -59,7 +59,8 @@ def evaluate_fn(val_loader):
 
             # _, _, _, _, _, _, t1, t2, t3, t4 = teacher.forward_attention(image)
             # class_feature, _, _, s1, s2, s3, s4 = student_model(image, gender)    # 对比使用
-            class_feature, s1, s2, s3, s4 = student_model(image, gender)    # 蒸馏使用
+            # class_feature, s1, s2, s3, s4 = student_model(image, gender)    # 蒸馏使用
+            class_feature, _, s1, s2, s3, s4 = student_model(image, gender)  # Squeeze使用
             y_pred = (class_feature * boneage_div) + boneage_mean  # 反归一化为原始标签
 
             y_pred = y_pred.squeeze()
@@ -97,7 +98,7 @@ if __name__ == "__main__":
     #   prepare student model
     student_path = flags['student_path']
     # student_model = get_student().cuda()
-    student_model = get_student_gate().cuda()
+    student_model = get_student_squeeze().cuda()
     # student_model = get_student_res18().cuda()
     student_model.load_state_dict(torch.load(student_path), strict=True)
 
@@ -166,4 +167,4 @@ if __name__ == "__main__":
         pin_memory=True
     )
 
-    evaluate_fn(train_loader)
+    evaluate_fn(valid_loader)

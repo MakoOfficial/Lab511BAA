@@ -177,6 +177,31 @@ def log_contrast_losses_to_csv(training_loss, mean_triple_loss_0, mean_triple_lo
           f"{mean_triple_loss_1}, Validation Loss: {val_loss}, Cost Time: {round(cost_time, 2)}, LR: {lr}")
 
 
+
+def log_contrast_losses_to_csv_End2End(training_loss, mean_attn_loss, mean_triple_loss_0, mean_triple_loss_1, val_loss, cost_time, lr, log_file_path):
+    # 确保目标文件夹存在
+    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+
+    # 如果文件不存在，则创建并写入表头
+    if not os.path.exists(log_file_path):
+        with open(log_file_path, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(
+                ["Training_Loss", "Mean_Attn_Loss", "Mean_Contrast_Loss_0", "Mean_Contrast_Loss_1", "Validation_Loss", "Cost_Time", "LR"])
+
+    # 追加写入损失值
+    with open(log_file_path, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow([round(training_loss, 4), round(mean_attn_loss, 5), round(mean_triple_loss_0, 5),
+                         round(mean_triple_loss_1, 5), round(val_loss, 3),
+                         round(cost_time, 2), lr])
+
+    # 打印到终端
+    print(f"Training Loss: {training_loss}, Mean_Attn_Loss: {mean_attn_loss}, Mean Contrast Loss 0: {mean_triple_loss_0}, Mean Contrast Loss 1: "
+          f"{mean_triple_loss_1}, Validation Loss: {val_loss}, Cost Time: {round(cost_time, 2)}, LR: {lr}")
+
+
+
 def log_valid_result_to_csv(id_list, boneage_list, male_list, pred_list, loss_list, log_file_path):
     length = len(id_list)
     # 确保目标文件夹存在
@@ -680,7 +705,7 @@ def scale_loss(label, male, male_distribute, female_distribute):
 #     print(scale_loss(loss, label, male, label_male, label_female))
 
 def l1_loss(pred, boneage):
-    # p = 0.5864
-    p = 0.5954
+    p = 0.5864
+    # p = 0.5954
     new_pred = (pred - boneage) * p + boneage
     return new_pred, torch.abs(boneage - new_pred)
