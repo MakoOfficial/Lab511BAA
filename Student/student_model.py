@@ -408,8 +408,8 @@ def get_student_res18(pretrained=True):
     return Student_Model_Res18(32, *get_pretrained_resnet18(pretrained=pretrained))
 
 
-def get_student_res18(pretrained=True):
-    return Student_Model_Res18(32, *get_pretrained_resnet18(pretrained=pretrained))
+def get_student_OnlyKD(pretrained=True):
+    return Student_Model_OnlyKD(get_pretrained_resnet18(pretrained=pretrained)[0])
 
 
 if __name__ == '__main__':

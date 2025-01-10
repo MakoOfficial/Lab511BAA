@@ -109,6 +109,27 @@ def L1_penalty_multi(net, alpha):
     return alpha * (loss + 1/2 * loss2 + 1/2 * loss3)
 
 
+def log_losses_to_csv_KD(mean_attention_loss, val_attn, cost_time, lr, log_file_path):
+    # 确保目标文件夹存在
+    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+
+    # 如果文件不存在，则创建并写入表头
+    if not os.path.exists(log_file_path):
+        with open(log_file_path, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(
+                ["Mean_Attention_Loss", "Val_Attn_Loss", "Cost_Time", "LR"])
+
+    # 追加写入损失值
+    with open(log_file_path, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow([round(mean_attention_loss, 5), round(val_attn, 5),
+                         round(cost_time, 2), lr])
+
+    # 打印到终端
+    print(f"Mean Attention Loss: {mean_attention_loss}, "
+          f"Val Attn Loss: {val_attn}, Cost Time: {round(cost_time, 2)}, LR: {lr}")
+
 
 def log_losses_to_csv(training_loss, mean_attention_loss, val_loss, val_attn, cost_time, lr, log_file_path):
     # 确保目标文件夹存在
