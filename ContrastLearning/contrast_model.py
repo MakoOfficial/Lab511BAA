@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
-from Student.student_model import get_student
+from Student.student_model import get_student, get_student_OnlyKD
 from Student.student_classifier import get_student_class
 from torchvision.models import resnet50, resnet18
 from ContrastLearning.vit_model_old import getViTBlock
@@ -530,6 +530,16 @@ def get_student_GCN(backbone_path):
 
 def get_student_contrast_model(student_path):
     backbone = get_student()
+    if student_path is not None:
+        backbone.load_state_dict(torch.load(student_path))
+
+    resnet, output_channels = get_pretrained_resnet50(True)
+
+    return Student_Contrast_Model(backbone, resnet)
+
+
+def get_student_contrast_model_OnlyKD(student_path):
+    backbone = get_student_OnlyKD()
     if student_path is not None:
         backbone.load_state_dict(torch.load(student_path))
 

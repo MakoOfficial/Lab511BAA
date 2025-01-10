@@ -157,7 +157,7 @@ class Student_Squeeze_Model(nn.Module):
         x = torch.cat([x, gender_encode], dim=1)
 
         x = self.down(x)
-        squeeze_feature = x
+        squeeze_feature = F.normalize(x, dim=1)
 
         x = self.decoder(x)
         x = self.fc(x)

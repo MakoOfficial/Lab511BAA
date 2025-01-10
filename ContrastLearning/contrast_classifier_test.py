@@ -55,9 +55,9 @@ def evaluate_fn(val_loader):
             y_pred, batch_loss = l1_loss(y_pred, label)
             mae_loss += batch_loss.sum().item()
 
-            log_valid_result_to_csv(id, label.cpu(), gender.cpu(), y_pred.cpu(), batch_loss.cpu(), log_path)
+            # log_valid_result_to_csv(id, label.cpu(), gender.cpu(), y_pred.cpu(), batch_loss.cpu(), log_path)
             # log_valid_result_logits_to_csv(id, label.cpu(), gender.cpu(), y_pred.cpu(), batch_loss.cpu(), logits_list.cpu(), log_path)
-            # save_attn_all_KD(s1[5], s2[5], s3[5], s4[5], id[5], ckp_dir)
+            save_attn_all_KD(s1, s2, s3, s4, id, ckp_dir)
             # show_attn_all_KD(s1[5], s2[5], s3[5], s4[5], id[5], ckp_dir)
     mae_loss = mae_loss / val_total_size
     print(f"valid loss: {mae_loss}")

@@ -14,7 +14,7 @@ from torch.utils.data import Dataset
 from datasets import RSNATrainDataset, RSNAValidDataset
 from utils import L1_penalty, log_contrast_losses_to_csv, save_attn_KD, save_contrast_attn_6Stage
 
-from ContrastLearning.contrast_model import get_student_contrast_model
+from ContrastLearning.contrast_model import get_student_contrast_model, get_student_contrast_model_OnlyKD
 from ContrastLearning.triplet_loss import AdapitiveTripletLoss
 from ContrastLearning.WCL import WCL
 
@@ -27,10 +27,10 @@ flags['num_workers'] = 8
 flags['num_epochs'] = 100
 flags['img_size'] = 256
 flags['data_dir'] = '../archive'
-flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
+flags['student_path'] = "../../autodl-tmp/KD_All_Output_3090/KD_Only_1_10/KD_Only_1_10.bin"
 flags['save_path'] = '../../autodl-tmp/KD_All_Output_3090'
-flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96_Gate'
-flags['node'] = '在增加性别分别的前提下，增加门控机制'
+flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_OnlyKD'
+flags['node'] = '新蒸馏框架，训练对比'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
@@ -207,7 +207,8 @@ if __name__ == "__main__":
     save_path = os.path.join(flags['save_path'], model_name)
     os.makedirs(save_path, exist_ok=True)
     #   prepare contrast learning model
-    contrast_model = get_student_contrast_model(student_path=flags['student_path']).cuda()
+    # contrast_model = get_student_contrast_model(student_path=flags['student_path']).cuda()
+    contrast_model = get_student_contrast_model_OnlyKD(student_path=flags['student_path']).cuda()
     # contrast_model = get_only_contrast_model(student_path=flags['student_path']).cuda()
     #   load data setting
     data_dir = flags['data_dir']
@@ -216,7 +217,7 @@ if __name__ == "__main__":
     # train_path = "../../autodl-tmp/archive/train"
     valid_path = os.path.join(data_dir, "valid")
 
-    train_csv = os.path.join(data_dir, "train_4K.csv")
+    train_csv = os.path.join(data_dir, "train.csv")
     # train_csv = "../../autodl-tmp/archive/train.csv"
     train_df = pd.read_csv(train_csv)
     valid_csv = os.path.join(data_dir, "valid.csv")
