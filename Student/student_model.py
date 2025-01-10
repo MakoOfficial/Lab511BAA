@@ -409,7 +409,7 @@ def get_student_res18(pretrained=True):
 
 
 def get_student_OnlyKD(pretrained=True):
-    return Student_Model_OnlyKD(get_pretrained_resnet18(pretrained=pretrained)[0])
+    return Student_Model_OnlyKD(get_pretrained_resnet50(pretrained=pretrained)[0])
 
 
 if __name__ == '__main__':

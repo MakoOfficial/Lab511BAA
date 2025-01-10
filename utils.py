@@ -679,7 +679,7 @@ def scale_loss(label, male, male_distribute, female_distribute):
 #     print(scale_loss(loss, label, male, label_male, label_female))
 
 def l1_loss(pred, boneage):
-    p = 0.5864
+    # p = 0.5864
     p = 0.5954
     new_pred = (pred - boneage) * p + boneage
     return new_pred, torch.abs(boneage - new_pred)

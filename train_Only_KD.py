@@ -71,14 +71,14 @@ def train_fn(train_loader, optimizer):
         # forward
         # firstly, get attention map from teacher model
         _, _, _, _, _, _, t1, t2, t3, t4 = teacher.forward_attention(image)
-        class_feature, s1, s2, s3, s4 = student_model(image)
+        s1, s2 = student_model(image)
 
-        train_attn_loss = attn_offset_kl_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
+        train_attn_loss = attn_offset_kl_loss_firstStage(t1, t2, t3, t4, s1, s2, 0, 0)
         # train_attn_loss = attn_offset_mse_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
         # train_attn_loss = attn_kl_loss_singleStage_ablation(t2, s2)
 
         # backward,calculate gradients
-        total_loss = flags['attn_loss_ratio']
+        total_loss = train_attn_loss
         total_loss.backward()
 
         # backward,update parameter
@@ -106,9 +106,9 @@ def evaluate_fn(val_loader):
             image = image.type(torch.FloatTensor).cuda()
 
             _, _, _, _, _, _, t1, t2, t3, t4 = teacher.forward_attention(image)
-            class_feature, s1, s2, s3, s4 = student_model(image)
+            s1, s2 = student_model(image)
 
-            val_attn_loss = attn_offset_kl_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
+            val_attn_loss = attn_offset_kl_loss_firstStage(t1, t2, t3, t4, s1, s2, 0, 0)
             # val_attn_loss = attn_offset_mse_loss_firstStage(t1, t2, t3, t4, s1, s2, s3, s4)
             # val_attn_loss = attn_kl_loss_singleStage_ablation(t2, s2)
             batch_attn_loss = val_attn_loss.item()
@@ -116,7 +116,7 @@ def evaluate_fn(val_loader):
             attn_loss += batch_attn_loss
 
             if batch_idx == len(val_loader) - 1:
-                save_attn_KD(t1[0], t2[0], t3[0], t4[0], s1[0], s2[0], s3[0], s4[0], save_path)
+                save_attn_KD(t1[0], t2[0], t3[0], t4[0], s1[0], s2[0], s1[0], s1[0], save_path)
 
     return attn_loss, val_total_size
 
@@ -193,7 +193,7 @@ if __name__ == "__main__":
     print(f"boneage_div is {boneage_div}")
     print(f'{save_path} start')
 
-    train_set = RSNATrainDataset(train_df, data_dir, boneage_mean, boneage_div, flags['img_size'])
+    train_set = RSNATrainDataset(train_df, train_path, boneage_mean, boneage_div, flags['img_size'])
     valid_set = RSNAValidDataset(valid_df, valid_path, boneage_mean, boneage_div, flags['img_size'])
     print(train_set.__len__())
 
