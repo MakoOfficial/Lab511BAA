@@ -101,6 +101,22 @@ class Student_Model(nn.Module):
         return linear_out, 0, 0
 
 
+class Student_Model_OnlyKD(nn.Module):
+    def __init__(self, backbone):
+        super(Student_Model_OnlyKD, self).__init__()
+        self.backbone0 = nn.Sequential(*backbone[0:5])
+        self.backbone0[0] = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.attn0 = CBAM(in_planes=256, ratio=8, kernel_size=3)
+        self.backbone1 = backbone[5]
+        self.attn1 = CBAM(in_planes=512, ratio=8, kernel_size=3)
+
+    def forward(self, image):
+        x0, attn0 = self.attn0(self.backbone0(image))
+        x1, attn1 = self.attn1(self.backbone1(x0))
+
+        return attn0, attn1
+
+
 class Student_Model_Gate(nn.Module):
     def __init__(self, gender_encode_length, backbone, out_channels):
         super(Student_Model_Gate, self).__init__()
@@ -386,6 +402,10 @@ def get_student_gate(pretrained=True):
 
 def get_student_feature(pretrained=True):
     return Student_Model_Feature(32, *get_pretrained_resnet50(pretrained=pretrained))
+
+
+def get_student_res18(pretrained=True):
+    return Student_Model_Res18(32, *get_pretrained_resnet18(pretrained=pretrained))
 
 
 def get_student_res18(pretrained=True):

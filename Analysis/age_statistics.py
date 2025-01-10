@@ -17,9 +17,9 @@ data_dir = "E:/code/Dataset/RSNA"
 # }
 
 csv_map = {
-    "Classify": '../Student/NoNorm/Student_Gate_256_valid_Class.csv',
-    "Soft Label": '../Student/NoNorm/Student_Gate_256_valid_Class_Softmax.csv',
-    "Regression": '../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96_200epoch/Contrast_4K_Gender_96_200e_3.75_full.csv'
+    "Classify": '../Student/baseline/ResNet50_Class_256_Full/Student_256_train_Class_Full_Softmax.csv',
+    "Soft Label": '../Student/baseline/ResNet50_Class_256_Full/Student_256_valid_Class_Softmax.csv',
+    "Regression": '../Student/baseline/ResNet50_Class_256_Full/Student_256_valid_Class.csv'
 }
 
 
