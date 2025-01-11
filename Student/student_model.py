@@ -168,6 +168,7 @@ class Student_Squeeze_Model(nn.Module):
 class Student_Model_OnlyKD(nn.Module):
     def __init__(self, gender_encode_length, backbone, out_channels):
         super(Student_Model_OnlyKD, self).__init__()
+        self.out_channels = 512
         self.backbone0 = nn.Sequential(*backbone[0:5])
         self.backbone0[0] = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.attn0 = CBAM(in_planes=256, ratio=8, kernel_size=3)

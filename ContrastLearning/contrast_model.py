@@ -355,7 +355,6 @@ class Student_Contrast_Model(nn.Module):
             # nn.Dropout(0.2),
             nn.Linear(512, 1)
         )
-        self.gate = GatingBlock(512)
 
         self.cls_Embedding_0 = nn.Sequential(
             nn.Linear(1024, 512),
@@ -390,13 +389,13 @@ class Student_Contrast_Model(nn.Module):
         cls_token2 = F.normalize(self.cls_Embedding_0(cls_token2), dim=1)
         cls_token3 = F.normalize(self.cls_Embedding_1(cls_token3), dim=1)
 
-        for i in range(len(self.fc)):
-            x = self.fc[i](x)
-            if i == 5:
-                bias = self.gate(x)
-        # x = self.fc(x)
+        # for i in range(len(self.fc)):
+        #     x = self.fc[i](x)
+        #     if i == 5:
+        #         bias = self.gate(x)
+        x = self.fc(x)
 
-        return x + bias, cls_token2, cls_token3, attn0, attn1, attn2, attn3
+        return x, cls_token2, cls_token3, attn0, attn1, attn2, attn3
 
     def freeze_params(self):
         for _, param in self.backbone0.named_parameters():
@@ -436,6 +435,70 @@ class Student_Contrast_Model(nn.Module):
 
         return linear_out, cls_token2, cls_token3, cls_token2_before, cls_token3_before
 
+
+
+class Student_Contrast_Model_Pretrain(nn.Module):
+    def __init__(self, backbone):
+        super(Student_Contrast_Model_Pretrain, self).__init__()
+
+        self.backbone0 = backbone.backbone0
+        self.attn0 = backbone.attn0
+        self.backbone1 = backbone.backbone1
+        self.attn1 = backbone.attn1
+        self.freeze_params()
+
+        self.backbone2 = backbone[6]
+        self.adj_learning0 = AdaA(1024, 768, 32)
+        self.backbone3 = backbone[7]
+        self.adj_learning1 = AdaA(2048, 768, 16)
+
+        self.gender_encoder = backbone.gender_encoder
+        self.gender_bn = backbone.gender_bn
+
+        self.fc = backbone.fc
+
+        self.cls_Embedding_0 = nn.Sequential(
+            nn.Linear(1024, 512),
+            nn.ReLU(),
+            # nn.BatchNorm1d(512),
+            nn.Linear(512, 1024)
+        )
+
+        self.cls_Embedding_1 = nn.Sequential(
+            nn.Linear(2048, 512),
+            nn.ReLU(),
+            # nn.BatchNorm1d(512),
+            nn.Linear(512, 1024)
+        )
+
+    def forward(self, image, gender):
+        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))
+        x0, attn0 = self.attn0(self.backbone0(image))
+        x1, attn1 = self.attn1(self.backbone1(x0))
+        x2, cls_token2, attn2 = self.adj_learning0(self.backbone2(x1), gender_encode)
+        x3, cls_token3, attn3 = self.adj_learning1(self.backbone3(x2), gender_encode)
+
+        x = F.adaptive_avg_pool2d(x3, 1)
+        x = torch.flatten(x, 1)
+
+        x = torch.cat([x, gender_encode], dim=1)
+
+        cls_token2 = F.normalize(self.cls_Embedding_0(cls_token2), dim=1)
+        cls_token3 = F.normalize(self.cls_Embedding_1(cls_token3), dim=1)
+
+        x = self.fc(x)
+
+        return x, cls_token2, cls_token3, attn0, attn1, attn2, attn3
+
+    def freeze_params(self):
+        for _, param in self.backbone0.named_parameters():
+            param.requires_grad = False
+        for _, param in self.attn0.named_parameters():
+            param.requires_grad = False
+        for _, param in self.backbone1.named_parameters():
+            param.requires_grad = False
+        for _, param in self.attn1.named_parameters():
+            param.requires_grad = False
 
 
 class Student_Contrast_Model_End2End(nn.Module):
@@ -603,6 +666,13 @@ def get_student_contrast_model(student_path):
     resnet, output_channels = get_pretrained_resnet50(True)
 
     return Student_Contrast_Model(backbone, resnet)
+
+
+def get_student_contrast_model_pretrain(student_path):
+    backbone = get_student()
+    if student_path is not None:
+        backbone.load_state_dict(torch.load(student_path))
+    return Student_Contrast_Model_Pretrain(backbone)
 
 
 def get_student_contrast_model_OnlyKD(student_path):
