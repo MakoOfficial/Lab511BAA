@@ -22,24 +22,24 @@ from ContrastLearning.WCL import WCL
 warnings.filterwarnings("ignore")
 
 flags = {}
-flags['lr'] = 5e-4
-flags['batch_size'] = 96
+flags['lr'] = 1e-3
+flags['batch_size'] = 32
 flags['num_workers'] = 8
 flags['num_epochs'] = 100
 flags['img_size'] = 256
 flags['data_dir'] = '../archive'
 flags['teacher_path'] = "../unet_segmentation_Attn_UNet.pth"
 flags['save_path'] = '../../autodl-tmp/Contrast_All_Output_3090'
-flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_End2End'
+flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_11_32_End2End'
 flags['node'] = '端到端训练'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
 flags['weight_decay'] = 0
 flags['best_loss'] = 0
-flags['attn_ratio'] = 10
-flags['triple_loss_0_lambda'] = 0.05
-flags['triple_loss_1_lambda'] = 0.05
+flags['attn_ratio'] = 5
+flags['triple_loss_0_lambda'] = 0.01
+flags['triple_loss_1_lambda'] = 0.01
 flags['WCL_setting'] = dict(p=0.5, tempS=1, thresholdS=0.1, tempW=0.2)
 
 
@@ -227,7 +227,7 @@ if __name__ == "__main__":
     # train_path = "../../autodl-tmp/archive/train"
     valid_path = os.path.join(data_dir, "valid")
 
-    train_csv = os.path.join(data_dir, "train.csv")
+    train_csv = os.path.join(data_dir, "train_4K.csv")
     # train_csv = "../../autodl-tmp/archive/train.csv"
     train_df = pd.read_csv(train_csv)
     valid_csv = os.path.join(data_dir, "valid.csv")

@@ -166,7 +166,7 @@ class Student_Squeeze_Model(nn.Module):
 
 
 class Student_Model_OnlyKD(nn.Module):
-    def __init__(self, backbone):
+    def __init__(self, gender_encode_length, backbone, out_channels):
         super(Student_Model_OnlyKD, self).__init__()
         self.backbone0 = nn.Sequential(*backbone[0:5])
         self.backbone0[0] = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1, bias=False)
@@ -174,11 +174,36 @@ class Student_Model_OnlyKD(nn.Module):
         self.backbone1 = backbone[5]
         self.attn1 = CBAM(in_planes=512, ratio=8, kernel_size=3)
 
-    def forward(self, image):
+        self.gender_encoder = nn.Linear(1, gender_encode_length)
+        self.gender_bn = nn.BatchNorm1d(gender_encode_length)
+
+        self.fc = nn.Sequential(
+            nn.Linear(512 + gender_encode_length, 1024),
+            nn.BatchNorm1d(1024),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(1024, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            # nn.Dropout(0.2),
+            nn.Linear(512, 1)
+        )
+
+    def forward(self, image, gender):
         x0, attn0 = self.attn0(self.backbone0(image))
         x1, attn1 = self.attn1(self.backbone1(x0))
 
-        return attn0, attn1
+        x = F.adaptive_avg_pool2d(x1, 1)
+        x = torch.squeeze(x)
+        x = x.view(-1, self.out_channels)
+
+        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))
+
+        x = torch.cat([x, gender_encode], dim=1)
+
+        x = self.fc(x)
+
+        return x, attn0, attn1
 
 
 class Student_Model_Gate(nn.Module):
@@ -470,7 +495,7 @@ def get_student_res18(pretrained=True):
 
 
 def get_student_OnlyKD(pretrained=True):
-    return Student_Model_OnlyKD(get_pretrained_resnet50(pretrained=pretrained)[0])
+    return Student_Model_OnlyKD(32, *get_pretrained_resnet50(pretrained=pretrained))
 
 
 if __name__ == '__main__':
