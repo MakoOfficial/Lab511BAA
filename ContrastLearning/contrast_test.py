@@ -10,7 +10,7 @@ from datasets import RSNATestDataset, DHADataset
 from utils import log_valid_result_to_csv, save_attn_all, save_attn_all_KD, log_valid_result_logits_to_csv, l1_loss, show_attn_all_KD
 
 from Student.student_model import get_student, get_student_res18
-from ContrastLearning.contrast_model import get_student_contrast_model
+from ContrastLearning.contrast_model import get_student_contrast_model, get_student_contrast_model_pretrain
 from Unet.UNets import get_Attn_Unet
 
 warnings.filterwarnings("ignore")
@@ -21,9 +21,9 @@ flags['num_workers'] = 8
 flags['data_dir'] = '../../Dataset/RSNA'
 flags['DHA_dir'] = 'E:/code/Dataset/DHA/Digital Hand Atlas'
 flags['student_path'] = "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['contrast_path'] = "../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96_Gate_BN_Large/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_7_96_Gate_BN_Large.bin"
+flags['contrast_path'] = "../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_96_OnlyKD_AddRegression_1_11/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_96_OnlyKD_AddRegression_1_11.bin"
 
-flags['csv_name'] = "Contrast_Gender_96_Gate_BN_valid.csv"
+flags['csv_name'] = "Contrast_Gender_Pretrain_valid.csv"
 flags['DHA_option'] = False
 
 
@@ -71,7 +71,9 @@ if __name__ == "__main__":
     #   prepare student model
 
     student_path = flags['student_path']
-    student_model = get_student_contrast_model(student_path).cuda()
+    # student_model = get_student_contrast_model(student_path).cuda()
+    student_model = get_student_contrast_model_pretrain(student_path).cuda()
+
     contrast_path = flags['contrast_path']
     student_model.load_state_dict(torch.load(contrast_path), strict=True)
     for param in student_model.parameters():
@@ -86,7 +88,6 @@ if __name__ == "__main__":
     train_csv_ori = os.path.join(data_dir, "train_4K.csv")
     train_df_ori = pd.read_csv(train_csv_ori)
     train_df = pd.read_csv(os.path.join(data_dir, "train.csv"))
-    # train_merge_df = pd.read_csv("E:/code/Dataset/RSNA/train_merge.csv")
 
     if flags['DHA_option']:
         valid_csv = os.path.join(flags['DHA_dir'], "label.csv")
@@ -101,12 +102,8 @@ if __name__ == "__main__":
         valid_Dataset = RSNATestDataset
 
 
-    boneage_mean = train_df_ori['boneage'].mean()
-    boneage_div = train_df_ori['boneage'].std()
-
-
-    train_df = pd.read_csv(os.path.join(data_dir, "train.csv"))
-
+    boneage_mean = train_df['boneage'].mean()
+    boneage_div = train_df['boneage'].std()
 
     print(f"boneage_mean is {boneage_mean}")
     print(f"boneage_div is {boneage_div}")
@@ -131,5 +128,5 @@ if __name__ == "__main__":
         pin_memory=True
     )
 
-    # evaluate_fn(valid_loader)
-    evaluate_fn(train_loader)
+    evaluate_fn(valid_loader)
+    # evaluate_fn(train_loader)

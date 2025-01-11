@@ -500,6 +500,16 @@ class Student_Contrast_Model_Pretrain(nn.Module):
         for _, param in self.attn1.named_parameters():
             param.requires_grad = False
 
+    def downStream(self, image, gender):
+        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))
+        x0, attn0 = self.attn0(self.backbone0(image))
+        x1, attn1 = self.attn1(self.backbone1(x0))
+        x2, cls_token2, attn2 = self.adj_learning0(self.backbone2(x1), gender_encode)
+        x3, cls_token3, attn3 = self.adj_learning1(self.backbone3(x2), gender_encode)
+
+        contrast_feature = x3
+
+        return contrast_feature
 
 class Student_Contrast_Model_End2End(nn.Module):
     def __init__(self, backbone_res):
