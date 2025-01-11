@@ -17,7 +17,7 @@ data_dir = "E:/code/Dataset/RSNA"
 # }
 
 csv_map = {
-    "Classify": '../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_96_OnlyKD_AddRegression_1_11/Contrast_Gender_Pretrain_valid.csv',
+    "Classify": '../Final_Regression/model/FinalR_Full_valid.csv',
     "Soft Label": '../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain/Contrast_Gender_Pretrain_valid.csv',
     "Regression": '../Student/baseline/ResNet50_Class_256_Full/Student_256_valid_Class.csv'
 }

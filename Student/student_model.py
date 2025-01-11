@@ -21,6 +21,37 @@ def get_pretrained_resnet18(pretrained=True):
     return model, output_channels
 
 
+class Resnet50(nn.Module):
+    def __init__(self, gender_encode_length, backbone, out_channels):
+        super(Resnet50, self).__init__()
+        self.backbone = nn.Sequential(*backbone[0:8])
+
+        self.gender_encoder = nn.Linear(1, gender_encode_length)
+        self.gender_bn = nn.BatchNorm1d(gender_encode_length)
+
+        self.fc = nn.Sequential(
+            nn.Linear(out_channels + gender_encode_length, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, 512),
+            nn.ReLU(),
+            nn.Linear(512, 1)
+        )
+
+    def forward(self, image, gender):
+        x = self.backbone(image)
+
+        x = F.adaptive_avg_pool2d(x, 1)
+        x = torch.flatten(x, 1)
+
+        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))
+
+        x = torch.cat([x, gender_encode], dim=1)
+
+        x = self.fc(x)
+
+        return x
+
+
 class Student_Model(nn.Module):
     def __init__(self, gender_encode_length, backbone, out_channels):
         super(Student_Model, self).__init__()
@@ -473,6 +504,10 @@ class GAT(nn.Module):
         output = F.leaky_relu(self.gconv(node_feature, A))
 
         return output, A
+
+
+def get_res(pretrained=True):
+    return Resnet50(32, *get_pretrained_resnet50(pretrained=pretrained))
 
 
 def get_student(pretrained=True):
