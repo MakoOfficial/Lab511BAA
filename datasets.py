@@ -79,6 +79,19 @@ class RSNATrainDataset(BaseDataset):
         return (self.Trans(image), Tensor([row['male']])), row['zscore'], row['boneage']
 
 
+class RSNATrainResDataset(BaseDataset):
+    def __init__(self, df, file_path, age_mean, age_div, img_size):
+        super().__init__(df, file_path, age_mean, age_div)
+        self.img_size = img_size
+        self.Trans = get_train_transform(img_size)
+
+    def __getitem__(self, index):
+        row, image_path = self.get_image_path(index)
+        image = Image.open(image_path).convert('RGB')
+
+        return (self.Trans(image), Tensor([row['male']])), row['zscore'], row['boneage']
+
+
 class RSNATrainNoNormDataset(NoNormDataset):
     def __init__(self, df, file_path, img_size):
         super().__init__(df, file_path)
@@ -122,6 +135,19 @@ class RSNAValidDataset(BaseDataset):
     def __getitem__(self, index):
         row, image_path = self.get_image_path(index)
         image = Image.open(image_path).convert('L')
+
+        return (self.Trans(image), Tensor([row['male']])), row['boneage']
+
+
+class RSNAValidResDataset(BaseDataset):
+    def __init__(self, df, file_path, age_mean, age_div, img_size):
+        super().__init__(df, file_path, age_mean, age_div)
+        self.img_size = img_size
+        self.Trans = get_valid_transform(img_size)
+
+    def __getitem__(self, index):
+        row, image_path = self.get_image_path(index)
+        image = Image.open(image_path).convert('RGB')
 
         return (self.Trans(image), Tensor([row['male']])), row['boneage']
 
