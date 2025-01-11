@@ -77,7 +77,7 @@ def train_fn(train_loader, loss_fn, optimizer):
         # forward
         # firstly, get attention map from teacher model
         _, _, _, _, _, _, t1, t2, t3, t4 = teacher.forward_attention(image)
-        class_feature, s1, s2 = student_model(image)
+        class_feature, s1, s2 = student_model(image, gender)
         y_pred = class_feature.squeeze()
         label = label.squeeze()
 

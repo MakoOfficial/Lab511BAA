@@ -447,9 +447,9 @@ class Student_Contrast_Model_Pretrain(nn.Module):
         self.attn1 = backbone.attn1
         self.freeze_params()
 
-        self.backbone2 = backbone[6]
+        self.backbone2 = backbone.backbone2
         self.adj_learning0 = AdaA(1024, 768, 32)
-        self.backbone3 = backbone[7]
+        self.backbone3 = backbone.backbone3
         self.adj_learning1 = AdaA(2048, 768, 16)
 
         self.gender_encoder = backbone.gender_encoder
