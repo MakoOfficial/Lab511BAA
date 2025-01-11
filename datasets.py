@@ -144,12 +144,13 @@ class RSNAValidResDataset(BaseDataset):
         super().__init__(df, file_path, age_mean, age_div)
         self.img_size = img_size
         self.Trans = get_valid_transform(img_size)
+        df['id_int'] = df['id'].astype('float32')
 
     def __getitem__(self, index):
         row, image_path = self.get_image_path(index)
         image = Image.open(image_path).convert('RGB')
 
-        return (self.Trans(image), Tensor([row['male']])), row['boneage']
+        return (self.Trans(image), Tensor([row['male']])), row['boneage'], row['id_int']
 
 
 class RSNAValidNoNormDataset(NoNormDataset):

@@ -17,9 +17,9 @@ data_dir = "E:/code/Dataset/RSNA"
 # }
 
 csv_map = {
-    "Classify": '../Final_Regression/model/FinalR_Full_valid.csv',
-    "Soft Label": '../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain/Contrast_Gender_Pretrain_valid.csv',
-    "Regression": '../Student/baseline/ResNet50_Class_256_Full/Student_256_valid_Class.csv'
+    "MAE: no BatchNorm": '../Student/baseline/ResNet50_256_100epoch/ResNet50_256_valid.csv',
+    "MAE: BatchNorm": '../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain/Contrast_Gender_Pretrain_valid.csv',
+    "MSE: no BatchNorm": '../Student/baseline/ResNet_MSE/ResNet50_MSE_256_valid.csv'
 }
 
 
@@ -195,7 +195,7 @@ def print_deviation_dot_map(df, title, save_path):
 
     plt.xticks(np.arange(0, 229, 50))
     plt.yticks(np.arange(-40, 41, 10))
-    plt.ylim(-60, 60)
+    plt.ylim(-40, 40)
     # 设置坐标轴标签和标题
     plt.xlabel('Grand Truth(Months)')
     plt.ylabel('Deviation(Months)')

@@ -17,6 +17,15 @@ stage6_boneage = [14, 12,
 
 stage6_gender = [0, 1]
 
+ranges = [
+    (0, 14),
+    (15, 36),
+    (37, 108),
+    (109, 168),
+    (169, 200),
+    (201, 228)
+]
+
 ranges_male = [
     (0, 14),
     (15, 36),
@@ -647,7 +656,25 @@ def attn_masked_offset_kl_loss(t1, t2, t3, t4, s1, s2, s3, s4, xt):
 
     return KL_loss(t2_masked, s1_masked) + KL_loss(t3_masked, s2_masked)
 
+
 def label_distribute(df):
+    dis_vector = torch.zeros(228, dtype=torch.int)
+
+    for lower, upper in ranges:
+        # 统计当前范围的样本数量
+        count = df[(df['boneage'] >= lower) & (df['boneage'] <= upper)].shape[0]
+
+        # 将该组的样本数量赋值给属于该组范围的 vector 索引
+        dis_vector[lower:upper + 1] = count
+
+    dis_max = torch.max(dis_vector)
+
+    dis_vector = dis_max / dis_vector
+    return torch.sqrt(dis_vector)
+
+
+
+def label_distribute_gender(df):
     male_data = df[df['male'] == 1]
     female_data = df[df['male'] == 0]
 
@@ -684,7 +711,13 @@ def label_distribute(df):
     return torch.sqrt(male_vector), torch.sqrt(female_vector)
 
 
-def scale_loss(label, male, male_distribute, female_distribute):
+def scale_loss(label, distribute):
+    label = label.view(-1).type(torch.LongTensor) - 1
+    param = distribute[label]
+    return param
+
+
+def scale_loss_gender(label, male, male_distribute, female_distribute):
 
     label = label.view(-1).type(torch.LongTensor)
     male = male.view(-1)
@@ -692,20 +725,19 @@ def scale_loss(label, male, male_distribute, female_distribute):
 
     return param
 
-# import pandas as pd
-# if __name__ == '__main__':
-#     train_csv = "E:/code/Dataset/RSNA/train_merge.csv"
-#     train_df = pd.read_csv(train_csv)
-#     label_male, label_female = label_distribute(train_df)
-#     print(label_male)
-#     print(label_female)
-#     loss = torch.ones((8), dtype=torch.float32)
-#     label = torch.tensor([1, 48, 108, 192, 1, 36, 156, 192], dtype=torch.float32)
-#     male = torch.tensor([1, 1, 1, 1, 0, 0, 0, 0])
-#     print(scale_loss(loss, label, male, label_male, label_female))
 
 def l1_loss(pred, boneage):
     p = 0.5864
     # p = 0.5954
     new_pred = (pred - boneage) * p + boneage
     return new_pred, torch.abs(boneage - new_pred)
+
+
+if __name__ == '__main__':
+    train_csv = "E:/code/Dataset/RSNA/train_merge.csv"
+    train_df = pd.read_csv(train_csv)
+    label_dis = label_distribute(train_df)
+    print(label_dis)
+    loss = torch.ones((10), dtype=torch.float32)
+    label = torch.tensor([1, 48, 108, 192, 1, 36, 156, 192, 204, 228], dtype=torch.float32)
+    print(loss * scale_loss(label, label_dis))
