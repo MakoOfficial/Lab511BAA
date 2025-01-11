@@ -12,7 +12,8 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Dataset
 
 from datasets import RSNATrainDataset, RSNAValidDataset
-from utils import L1_penalty, log_contrast_losses_to_csv, save_attn_KD, save_contrast_attn_6Stage
+from utils import L1_penalty, log_contrast_losses_to_csv, save_attn_KD, save_contrast_attn_6Stage, label_distribute, \
+    scale_loss
 
 from ContrastLearning.contrast_model import get_student_contrast_model, get_student_contrast_model_OnlyKD, get_student_contrast_model_pretrain
 from ContrastLearning.triplet_loss import AdapitiveTripletLoss
@@ -27,10 +28,10 @@ flags['num_workers'] = 8
 flags['num_epochs'] = 100
 flags['img_size'] = 256
 flags['data_dir'] = '../archive'
-flags['student_path'] = "./KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
+flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = '../../autodl-tmp/KD_All_Output_3090'
-flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_96_OnlyKD_AddRegression_1_11'
-flags['node'] = '前两层使用OnlyKD_AddRegression的权重'
+flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE'
+flags['node'] = '后两层学习加入初始蒸馏权重'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
@@ -87,6 +88,8 @@ def train_fn(train_loader, loss_fn, triple_fn, optimizer):
         label = label.squeeze()
 
         loss = loss_fn(y_pred, label)
+        scale_param = scale_loss(img_gt, label_dis)
+        loss = (scale_param * loss).sum()
         triple_loss_0 = triple_fn(cls_token0, img_gt, gender)
         triple_loss_1 = triple_fn(cls_token1, img_gt, gender)
 
@@ -153,7 +156,8 @@ def evaluate_fn(val_loader):
 def training_start(flags):
     ## Network, optimizer, and loss function creation
     best_loss = float('inf')
-    loss_fn = nn.L1Loss(reduction='sum')
+    # loss_fn = nn.L1Loss(reduction='sum')
+    loss_fn = nn.MSELoss(reduction='none')
     # triple_fn = AdapitiveTripletLoss()
     wcl_setting = flags['WCL_setting']
     triple_fn = WCL(p=wcl_setting['p'], tempS=wcl_setting['tempS'], thresholdS=wcl_setting['thresholdS'], tempW=wcl_setting['tempW'])
@@ -206,8 +210,8 @@ if __name__ == "__main__":
     os.makedirs(save_path, exist_ok=True)
     #   prepare contrast learning model
     # contrast_model = get_student_contrast_model(student_path=flags['student_path']).cuda()
-    contrast_model = get_student_contrast_model_OnlyKD(student_path=flags['student_path']).cuda()
-    # contrast_model = get_student_contrast_model_pretrain(student_path=flags['student_path']).cuda()
+    # contrast_model = get_student_contrast_model_OnlyKD(student_path=flags['student_path']).cuda()
+    contrast_model = get_student_contrast_model_pretrain(student_path=flags['student_path']).cuda()
     # contrast_model = get_only_contrast_model(student_path=flags['student_path']).cuda()
     #   load data setting
     data_dir = flags['data_dir']
@@ -260,5 +264,7 @@ if __name__ == "__main__":
         shuffle=False,
         pin_memory=True
     )
+
+    label_dis = label_distribute(train_df).cuda()
 
     training_start(flags)

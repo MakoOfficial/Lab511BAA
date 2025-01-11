@@ -436,7 +436,6 @@ class Student_Contrast_Model(nn.Module):
         return linear_out, cls_token2, cls_token3, cls_token2_before, cls_token3_before
 
 
-
 class Student_Contrast_Model_Pretrain(nn.Module):
     def __init__(self, backbone):
         super(Student_Contrast_Model_Pretrain, self).__init__()
@@ -455,19 +454,23 @@ class Student_Contrast_Model_Pretrain(nn.Module):
         self.gender_encoder = backbone.gender_encoder
         self.gender_bn = backbone.gender_bn
 
-        self.fc = backbone.fc
+        self.fc = nn.Sequential(
+            nn.Linear(2048 + 32, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, 512),
+            nn.ReLU(),
+            nn.Linear(512, 1)
+        )
 
         self.cls_Embedding_0 = nn.Sequential(
             nn.Linear(1024, 512),
             nn.ReLU(),
-            # nn.BatchNorm1d(512),
             nn.Linear(512, 1024)
         )
 
         self.cls_Embedding_1 = nn.Sequential(
             nn.Linear(2048, 512),
             nn.ReLU(),
-            # nn.BatchNorm1d(512),
             nn.Linear(512, 1024)
         )
 
@@ -510,6 +513,7 @@ class Student_Contrast_Model_Pretrain(nn.Module):
         contrast_feature = x3
 
         return contrast_feature
+
 
 class Student_Contrast_Model_End2End(nn.Module):
     def __init__(self, backbone_res):

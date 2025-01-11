@@ -25,7 +25,7 @@ flags['teacher_path'] = "./ckp/Unet/unet_segmentation_Attn_UNet.pth"
 # flags['student_path'] = "./Student/baseline/Res50_All.bin"
 # flags['student_path'] = "./KD_All_Output/KD_Res18_3090/KD_Res18.bin"
 flags['student_path'] = "./Student/baseline/ResNet50_256_Squeeze_4K/ResNet50_256_Squeeze_4K.bin"
-flags['csv_name'] = "ResNet50_256_Squeeze_4K_valid.csv"
+flags['csv_name'] = "ResNet50_256_Squeeze_train.csv"
 flags['mask_option'] = False
 flags['DHA_option'] = False
 
@@ -145,7 +145,7 @@ if __name__ == "__main__":
     print(f"boneage_div is {boneage_div}")
     print(f'valid file save at {ckp_dir}')
 
-    train_set = valid_Dataset(ori_train_df, train_path, boneage_mean, boneage_div, 256)
+    train_set = valid_Dataset(train_df, train_path, boneage_mean, boneage_div, 256)
     Test_set = valid_Dataset(valid_df, valid_path, boneage_mean, boneage_div, 256)
     print(f"Test set length: {Test_set.__len__()}")
     print(f"Train set length: {train_set.__len__()}")
@@ -167,4 +167,4 @@ if __name__ == "__main__":
         pin_memory=True
     )
 
-    evaluate_fn(valid_loader)
+    evaluate_fn(train_loader)
