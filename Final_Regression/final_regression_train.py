@@ -12,7 +12,7 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Dataset
 
 from datasets import RSNATrainDataset, RSNAValidDataset
-from utils import L1_penalty, log_losses_to_csv
+from utils import L1_penalty, log_losses_to_csv, label_distribute, scale_loss, save_attn_KD, save_contrast_attn_6Stage
 
 from Final_Regression.final_regression_model import get_final_regression
 
@@ -28,7 +28,7 @@ flags['data_dir'] = '../archive'
 flags['backbone_path'] = '../../autodl-tmp/KD_All_Output_3090/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain.bin'
 flags['save_path'] = '../../autodl-tmp/Contrast_All_Output_3090'
 flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_96_Pretrain_FinalRegression_1_11'
-flags['node'] = '只做最后的分类'
+flags['node'] = '只做最后的分类， 取消BN，加入scale loss'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
@@ -67,16 +67,19 @@ def train_fn(train_loader, loss_fn, optimizer):
 
         batch_size = len(data[1])
         label = data[1].type(torch.FloatTensor).cuda()
+        img_gt = data[2].type(torch.FloatTensor).cuda()
 
         # zero the parameter gradients
         optimizer.zero_grad()
 
         # forward
-        class_feature = contrast_model(image, gender)
+        class_feature, _, _, s1, s2, s3, s4 = contrast_model(image, gender)
         y_pred = class_feature.squeeze()
         label = label.squeeze()
 
         loss = loss_fn(y_pred, label)
+        scale_param = scale_loss(img_gt, label_dis)
+        loss = (scale_param * loss).sum()
 
         # backward,calculate gradients
         penalty_loss = L1_penalty(contrast_model, 1e-5)
@@ -110,7 +113,7 @@ def evaluate_fn(val_loader):
 
             label = data[1].cuda()
 
-            class_feature = contrast_model(image, gender)
+            class_feature, _, _, s1, s2, s3, s4 = contrast_model(image, gender)
             # class_feature, _, _, s1, s2, s3, s4 = contrast_model(image, gender)
             y_pred = (class_feature * boneage_div) + boneage_mean  # 反归一化为原始标签
             y_pred = y_pred.squeeze()
@@ -118,6 +121,8 @@ def evaluate_fn(val_loader):
             batch_loss = F.l1_loss(y_pred, label, reduction='sum').item()
 
             mae_loss += batch_loss
+            if batch_idx == len(val_loader) - 1:
+                save_attn_KD(s1[0], s2[0], s3[0], s4[0], s1[0], s2[0], s3[0], s4[0], save_path)
 
     return mae_loss, val_total_size
 
@@ -125,7 +130,8 @@ def evaluate_fn(val_loader):
 def training_start(flags):
     ## Network, optimizer, and loss function creation
     best_loss = float('inf')
-    loss_fn = nn.L1Loss(reduction='sum')
+    # loss_fn = nn.L1Loss(reduction='sum')
+    loss_fn = nn.MSELoss(reduction='none')
 
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, contrast_model.parameters()),
                                  lr=flags['lr'], weight_decay=flags['weight_decay'])
@@ -142,6 +148,8 @@ def training_start(flags):
         ## Evaluation
         # Sets net to eval and no grad context
         valid_mae_loss, val_total_size = evaluate_fn(valid_loader)
+
+        save_contrast_attn_6Stage(test_loader=test_loader, model=contrast_model, save_path=save_path)
 
         training_mean_loss = training_loss / total_size
         valid_mean_mae = valid_mae_loss / val_total_size
@@ -181,6 +189,8 @@ if __name__ == "__main__":
     train_df = pd.read_csv(train_csv)
     valid_csv = os.path.join(data_dir, "valid.csv")
     valid_df = pd.read_csv(valid_csv)
+    test_csv = os.path.join(data_dir, "valid_test.csv")
+    test_df = pd.read_csv(test_csv)
 
     boneage_mean = train_df['boneage'].mean()
     boneage_div = train_df['boneage'].std()
@@ -190,6 +200,7 @@ if __name__ == "__main__":
 
     train_set = RSNATrainDataset(train_df, train_path, boneage_mean, boneage_div, flags['img_size'])
     valid_set = RSNAValidDataset(valid_df, valid_path, boneage_mean, boneage_div, flags['img_size'])
+    test_set = RSNAValidDataset(test_df, valid_path, boneage_mean, boneage_div, flags['img_size'])
 
     print(train_set.__len__())
 
@@ -209,5 +220,14 @@ if __name__ == "__main__":
         num_workers=flags['num_workers'],
         pin_memory=True
     )
+
+    test_loader = torch.utils.data.DataLoader(
+        test_set,
+        batch_size=12,
+        shuffle=False,
+        pin_memory=True
+    )
+
+    label_dis = label_distribute(train_df).cuda()
 
     training_start(flags)

@@ -18,16 +18,16 @@ class Final_Regression(nn.Module):
 
         self.fc = nn.Sequential(
             nn.Linear(2048 + 32, 1024),
-            nn.BatchNorm1d(1024),
+            # nn.BatchNorm1d(1024),
             nn.ReLU(),
             nn.Linear(1024, 512),
-            nn.BatchNorm1d(512),
+            # nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Linear(512, 1)
         )
 
     def forward(self, image, gender):
-        contrast_feature = self.backbone.downStream(image, gender)
+        contrast_feature, attn0, attn1, attn2, attn3 = self.backbone.downStream(image, gender)
 
         gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))  # B * 32
 
@@ -37,7 +37,7 @@ class Final_Regression(nn.Module):
 
         x = self.fc(x)
 
-        return x
+        return x, 0, 0, attn0, attn1, attn2, attn3
 
     def freeze_params(self):
         for _, param in self.backbone.named_parameters():

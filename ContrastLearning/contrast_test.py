@@ -21,9 +21,9 @@ flags['num_workers'] = 8
 flags['data_dir'] = '../../Dataset/RSNA'
 flags['DHA_dir'] = 'E:/code/Dataset/DHA/Digital Hand Atlas'
 flags['student_path'] = "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['contrast_path'] = "../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_96_OnlyKD_AddRegression_1_11/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_96_OnlyKD_AddRegression_1_11.bin"
+flags['contrast_path'] = "../Contrast_Output/NoBN/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE.bin"
 
-flags['csv_name'] = "Contrast_Gender_Pretrain_valid.csv"
+flags['csv_name'] = "Contrast_Gender_Pretrain_NoBN_Scale_train.csv"
 flags['DHA_option'] = False
 
 
@@ -128,5 +128,5 @@ if __name__ == "__main__":
         pin_memory=True
     )
 
-    evaluate_fn(valid_loader)
-    # evaluate_fn(train_loader)
+    # evaluate_fn(valid_loader)
+    evaluate_fn(train_loader)

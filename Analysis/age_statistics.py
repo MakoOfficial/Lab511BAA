@@ -17,11 +17,12 @@ data_dir = "E:/code/Dataset/RSNA"
 # }
 
 csv_map = {
-    "MAE: no BatchNorm": '../Student/baseline/ResNet50_256_100epoch_NoBN/ResNet50_256_train.csv',
-    "MAE: BatchNorm": '../Student/baseline/ResNet50_256_Squeeze_4K/ResNet50_256_Squeeze_train.csv',
-    "MSE: no BatchNorm": '../Student/baseline/ResNet_MSE_NoBN/ResNet50_MSE_256_train.csv',
-    "MSE Scale: no BatchNorm": '../Student/baseline/ResNet50_MSE_256_Scale_NoBN/ResNet50_MSE_256_train.csv',
-    "MSE Scale AgeNrom: no BatchNorm": '../Student/baseline/ResNet50_MSE_256_NoBN_AgeNorm/ResNet50_MSE_256_AgeNorm_valid.csv'
+    # "MAE: no BatchNorm": '../Student/baseline/ResNet50_256_100epoch_NoBN/ResNet50_256_train.csv',
+    # "MAE: BatchNorm": '../Student/baseline/ResNet50_256_Squeeze_4K/ResNet50_256_Squeeze_train.csv',
+    # "MSE: no BatchNorm": '../Student/baseline/ResNet_MSE_NoBN/ResNet50_MSE_256_train.csv',
+    # "MSE Scale: no BatchNorm": '../Student/baseline/ResNet50_MSE_256_Scale_NoBN/ResNet50_MSE_256_train.csv',
+    # "MSE Scale AgeNrom: no BatchNorm": '../Student/baseline/ResNet50_MSE_256_NoBN_AgeNorm/ResNet50_MSE_256_AgeNorm_valid.csv',
+    "Contrast MSE Scale AgeNrom: no BatchNorm": '../Contrast_Output/NoBN/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE/Contrast_Gender_Pretrain_NoBN_Scale_train.csv'
 
 }
 
