@@ -15,7 +15,7 @@ from datasets import RSNATrainDataset, RSNAValidDataset
 from utils import L1_penalty, log_contrast_losses_to_csv, save_attn_KD, save_contrast_attn_6Stage, label_distribute, \
     scale_loss
 
-from ContrastLearning.contrast_model import get_student_contrast_model, get_student_contrast_model_OnlyKD, get_student_contrast_model_pretrain
+from ContrastLearning.contrast_model import get_student_contrast_model, get_student_contrast_model_OnlyKD, get_student_contrast_model_pretrain, get_student_contrast_model_pretrain_vit
 from ContrastLearning.triplet_loss import AdapitiveTripletLoss
 from ContrastLearning.WCL import WCL
 
@@ -30,8 +30,8 @@ flags['img_size'] = 256
 flags['data_dir'] = '../archive'
 flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = '../../autodl-tmp/KD_All_Output_3090'
-flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE'
-flags['node'] = '后两层学习加入初始蒸馏权重'
+flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE_ViT'
+flags['node'] = '将池化操作改为ViT，并将验证集改为测试集'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
@@ -211,19 +211,18 @@ if __name__ == "__main__":
     #   prepare contrast learning model
     # contrast_model = get_student_contrast_model(student_path=flags['student_path']).cuda()
     # contrast_model = get_student_contrast_model_OnlyKD(student_path=flags['student_path']).cuda()
-    contrast_model = get_student_contrast_model_pretrain(student_path=flags['student_path']).cuda()
+    # contrast_model = get_student_contrast_model_pretrain(student_path=flags['student_path']).cuda()
+    contrast_model = get_student_contrast_model_pretrain_vit(student_path=flags['student_path']).cuda()
     # contrast_model = get_only_contrast_model(student_path=flags['student_path']).cuda()
     #   load data setting
     data_dir = flags['data_dir']
 
     train_path = os.path.join(data_dir, "train")
-    # train_path = "../../autodl-tmp/archive/train"
-    valid_path = os.path.join(data_dir, "valid")
+    valid_path = os.path.join(data_dir, "test")
 
     train_csv = os.path.join(data_dir, "train.csv")
-    # train_csv = "../../autodl-tmp/archive/train.csv"
     train_df = pd.read_csv(train_csv)
-    valid_csv = os.path.join(data_dir, "valid.csv")
+    valid_csv = os.path.join(data_dir, "test.csv")
     valid_df = pd.read_csv(valid_csv)
 
     test_csv = os.path.join(data_dir, "valid_test.csv")

@@ -727,8 +727,22 @@ def scale_loss_gender(label, male, male_distribute, female_distribute):
 
 
 def l1_loss(pred, boneage):
-    p = 0.5864
+    # p = 0.5864
+    p = 0.572689 # NoBN
     # p = 0.5954
+    new_pred = (pred - boneage) * p + boneage
+    return new_pred, torch.abs(boneage - new_pred)
+
+
+def l1_test_loss(pred, boneage):
+    # p = 0.5864
+    p = 0.66102 # NoBN
+    # p = 0.5954
+    new_pred = (pred - boneage) * p + boneage
+    return new_pred, torch.abs(boneage - new_pred)
+
+
+def Kernel_function(boneage):
     new_pred = (pred - boneage) * p + boneage
     return new_pred, torch.abs(boneage - new_pred)
 

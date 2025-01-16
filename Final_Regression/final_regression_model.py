@@ -27,7 +27,7 @@ class Final_Regression(nn.Module):
         )
 
     def forward(self, image, gender):
-        contrast_feature, attn0, attn1, attn2, attn3 = self.backbone.downStream(image, gender)
+        contrast_feature, _, _, attn0, attn1, attn2, attn3 = self.backbone.downStream(image, gender)
 
         gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))  # B * 32
 
@@ -45,8 +45,8 @@ class Final_Regression(nn.Module):
 
     def clr_layers(self):
         self.backbone.fc = nn.Sequential()
-        self.backbone.cls_Embedding_0 = nn.Sequential()
-        self.backbone.cls_Embedding_1 = nn.Sequential()
+        # self.backbone.cls_Embedding_0 = nn.Sequential()
+        # self.backbone.cls_Embedding_1 = nn.Sequential()
 
 
 

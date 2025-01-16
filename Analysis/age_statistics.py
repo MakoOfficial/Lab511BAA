@@ -3,6 +3,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
+import seaborn as sns
 
 import torch
 
@@ -17,14 +18,19 @@ data_dir = "E:/code/Dataset/RSNA"
 # }
 
 csv_map = {
-    # "MAE: no BatchNorm": '../Student/baseline/ResNet50_256_100epoch_NoBN/ResNet50_256_train.csv',
-    # "MAE: BatchNorm": '../Student/baseline/ResNet50_256_Squeeze_4K/ResNet50_256_Squeeze_train.csv',
+    "KD": '../Student/baseline/ResNet50_MSE_256_NoBN_AgeNorm/ResNet50_MSE_256_AgeNorm_valid.csv',
+    "Contrastive": '../Contrast_Output/NoBN/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE/Contrast_Gender_Pretrain_NoBN_Scale_test.csv',
     # "MSE: no BatchNorm": '../Student/baseline/ResNet_MSE_NoBN/ResNet50_MSE_256_train.csv',
     # "MSE Scale: no BatchNorm": '../Student/baseline/ResNet50_MSE_256_Scale_NoBN/ResNet50_MSE_256_train.csv',
     # "MSE Scale AgeNrom: no BatchNorm": '../Student/baseline/ResNet50_MSE_256_NoBN_AgeNorm/ResNet50_MSE_256_AgeNorm_valid.csv',
-    "Contrast MSE Scale AgeNrom: no BatchNorm": '../Contrast_Output/NoBN/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE/Contrast_Gender_Pretrain_NoBN_Scale_train.csv'
-
+    # "Contrast MSE Scale AgeNrom: no BatchNorm": '../Contrast_Output/NoBN/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE/Contrast_Gender_Pretrain_NoBN_Scale_valid.csv'
 }
+# csv_map = {
+    # "MAE: BatchNorm - Train": '../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain/Contrast_Gender_Pretrain_train.csv',
+    # "MAE: BatchNorm - Valid": '../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain/Contrast_Gender_Pretrain_valid.csv',
+    # "MSE - no BatchNorm - Train": '../Contrast_Output/NoBN/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE/Contrast_Gender_Pretrain_NoBN_Scale_train.csv',
+    # "MSE - no BatchNorm - Valid": '../Contrast_Output/NoBN/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE/Contrast_Gender_Pretrain_NoBN_Scale_valid_Real.csv',
+# }
 
 
 def statistics_loss(df, loss_dict):
@@ -146,10 +152,10 @@ def print_predict_dot_map(df, title, save_path):
     plt.figure(figsize=(8, 8))
 
     # 绘制 loss_1，使用蓝色三角形标记
-    plt.scatter(labels_1, predictions_1, color='blue', marker='^', label='male', s=10)
+    plt.scatter(labels_1, predictions_1, color='blue', marker='^', label='male', s=10, alpha=0.1)
 
     # 绘制 loss_2，使用红色圆形标记
-    plt.scatter(labels_2, predictions_2, color='red', marker='o', label='female', s=10)
+    plt.scatter(labels_2, predictions_2, color='red', marker='o', label='female', s=10, alpha=0.1)
 
     # 绘制 y=x 绿色直线
     plt.plot([0, 228], [0, 228], color='green', linestyle='-', label='Actual Age')
@@ -186,10 +192,53 @@ def print_deviation_dot_map(df, title, save_path):
     plt.figure(figsize=(10, 6))
 
     # 绘制 loss_1，使用蓝色三角形标记
-    plt.scatter(labels_1, loss_1, color='blue', marker='^', label='male', s=10)
+    plt.scatter(labels_1, loss_1, color='blue', marker='^', label='male', s=10, alpha=0.3)
 
     # 绘制 loss_2，使用红色圆形标记
-    plt.scatter(labels_2, loss_2, color='red', marker='o', label='female', s=10)
+    plt.scatter(labels_2, loss_2, color='red', marker='o', label='female', s=10, alpha=0.3)
+
+    # 绘制 y=x 绿色直线
+    # plt.plot([0, 228], [0, 228], color='green', linestyle='-', label='Actual Age')
+    plt.axhline(y=0, color='black', linestyle='-', linewidth=1, label='y=0')
+    plt.axhline(y=10, color='black', linestyle='--', linewidth=1, label='y=10')
+    plt.axhline(y=-10, color='black', linestyle='--', linewidth=1, label='y=-10')
+
+    plt.xticks(np.arange(0, 229, 50))
+    plt.yticks(np.arange(-40, 41, 10))
+    plt.ylim(-40, 40)
+    # 设置坐标轴标签和标题
+    plt.xlabel('Grand Truth(Months)')
+    plt.ylabel('Deviation(Months)')
+    plt.title(f'Correlation between actual age and deviation for {title}')
+
+    # 显示图例
+    plt.legend()
+
+    # 显示图形
+    plt.grid(True)
+    # plt.savefig(os.path.join(save_path, f"{title}_Deviation.png"), dpi=800)
+    plt.show()
+    plt.clf()
+    plt.close('all')
+
+
+def print_deviation_dot_map_Jitter(df, title, save_path):
+    # 提取标签和预测值
+    df['minus'] = df['pred'] - df['boneage']
+    male_data = df[df['male'] == 1]
+    female_data = df[df['male'] == 0]
+
+    # 创建一个新的图形
+    plt.figure(figsize=(10, 6))
+
+    # 绘制 loss_1，使用蓝色三角形标记
+    sns.regplot(data=male_data, x='boneage', y='minus', label='male', color='blue', marker='^', x_jitter=0.2, y_jitter=0.2, scatter_kws={'alpha': 1/10})
+    # plt.scatter(labels_1, loss_1, color='blue', marker='', label='male', s=10, )
+
+    # 绘制 loss_2，使用红色圆形标记
+    # plt.scatter(labels_2, loss_2, color='red', marker='o', label='female', s=10, alpha=0.1)
+    sns.regplot(data=female_data, x='boneage', y='minus', label='male', color='red', marker='o', x_jitter=0.2,
+                y_jitter=0.2, scatter_kws={'alpha': 1 / 10})
 
     # 绘制 y=x 绿色直线
     # plt.plot([0, 228], [0, 228], color='green', linestyle='-', label='Actual Age')
@@ -325,11 +374,12 @@ def analysis_one_csv(csv_path, title, save_dir):
     # print_predict_dot_map(valid_csv, title=f"{title} Result", save_path=save_dir)
     # print_group_loss(valid_csv, title=f"{title} Result", save_path=save_dir)
     print_deviation_dot_map(valid_csv, title=f"{title} Result", save_path=save_dir)
+    # print_deviation_dot_map_Jitter(valid_csv, title=f"{title} Result", save_path=save_dir)
 
 
 
 if __name__ == '__main__':
-    save_dir = './'
+    save_dir = './散点图'
     #   对比损失
     for key in csv_map.keys():
         analysis_one_csv(csv_map[key], key, save_dir)

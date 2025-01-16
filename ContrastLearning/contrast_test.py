@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 
 from datasets import RSNATestDataset, DHADataset
-from utils import log_valid_result_to_csv, save_attn_all, save_attn_all_KD, log_valid_result_logits_to_csv, l1_loss, show_attn_all_KD
+from utils import log_valid_result_to_csv, save_attn_all, save_attn_all_KD, log_valid_result_logits_to_csv, l1_loss, show_attn_all_KD, l1_test_loss
 
 from Student.student_model import get_student, get_student_res18
 from ContrastLearning.contrast_model import get_student_contrast_model, get_student_contrast_model_pretrain
@@ -23,7 +23,7 @@ flags['DHA_dir'] = 'E:/code/Dataset/DHA/Digital Hand Atlas'
 flags['student_path'] = "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['contrast_path'] = "../Contrast_Output/NoBN/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE.bin"
 
-flags['csv_name'] = "Contrast_Gender_Pretrain_NoBN_Scale_train.csv"
+flags['csv_name'] = "Contrast_Gender_Pretrain_NoBN_Scale_test.csv"
 flags['DHA_option'] = False
 
 
@@ -53,12 +53,13 @@ def evaluate_fn(val_loader):
             y_pred = y_pred.squeeze()
             label = label.squeeze()
 
-            y_pred, batch_loss = l1_loss(y_pred, label)
+            # y_pred, batch_loss = l1_loss(y_pred, label)
+            y_pred, batch_loss = l1_test_loss(y_pred, label)
             mae_loss += batch_loss.sum().item()
 
             log_valid_result_to_csv(id, label.cpu(), gender.cpu(), y_pred.cpu(), batch_loss.cpu(), log_path)
             # log_valid_result_logits_to_csv(id, label.cpu(), gender.cpu(), y_pred.cpu(), batch_loss.cpu(), logits_list.cpu(), log_path)
-            # save_attn_all_KD(s1[5], s2[5], s3[5], s4[5], id[5], ckp_dir)
+            # save_attn_all_KD(s1, s2, s3, s4, id, ckp_dir)
             # show_attn_all_KD(s1[5], s2[5], s3[5], s4[5], id[5], ckp_dir)
     mae_loss = mae_loss / val_total_size
     print(f"valid loss: {mae_loss}")
@@ -84,10 +85,12 @@ if __name__ == "__main__":
 
     train_path = os.path.join(data_dir, "train")
     valid_path = os.path.join(data_dir, "valid")
+    test_path = os.path.join(data_dir, "test")
 
     train_csv_ori = os.path.join(data_dir, "train_4K.csv")
     train_df_ori = pd.read_csv(train_csv_ori)
     train_df = pd.read_csv(os.path.join(data_dir, "train.csv"))
+    test_df = pd.read_csv(os.path.join(data_dir, "Bone age ground truth.csv"))
 
     if flags['DHA_option']:
         valid_csv = os.path.join(flags['DHA_dir'], "label.csv")
@@ -110,8 +113,11 @@ if __name__ == "__main__":
     print(f'valid file save at {ckp_dir}')
 
     train_set = valid_Dataset(train_df, train_path, boneage_mean, boneage_div, 256)
-    Test_set = valid_Dataset(valid_df, valid_path, boneage_mean, boneage_div, 256)
-    print(f"Test set length: {train_set.__len__()}")
+    valid_set = valid_Dataset(valid_df, valid_path, boneage_mean, boneage_div, 256)
+    test_set = valid_Dataset(test_df, test_path, boneage_mean, boneage_div, 256)
+    print(f"Train set length: {train_set.__len__()}")
+    print(f"Valid set length: {valid_set.__len__()}")
+    print(f"Test set length: {test_set.__len__()}")
     # print(f"Test set length: 1425")
 
     train_loader = torch.utils.data.DataLoader(
@@ -122,11 +128,19 @@ if __name__ == "__main__":
     )
 
     valid_loader = torch.utils.data.DataLoader(
-        Test_set,
+        valid_set,
+        batch_size=flags['batch_size'],
+        shuffle=False,
+        pin_memory=True
+    )
+
+    test_loader = torch.utils.data.DataLoader(
+        test_set,
         batch_size=flags['batch_size'],
         shuffle=False,
         pin_memory=True
     )
 
     # evaluate_fn(valid_loader)
-    evaluate_fn(train_loader)
+    # evaluate_fn(train_loader)
+    evaluate_fn(test_loader)

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from CBAM_block import CBAM, GatingBlock_Class
+from plug_in_block import CBAM, GatingBlock_Class
 from torchvision.models import resnet50, resnet18
 
 
