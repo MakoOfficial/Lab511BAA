@@ -30,7 +30,7 @@ flags['img_size'] = 256
 flags['data_dir'] = '../archive'
 flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = '../../autodl-tmp/KD_All_Output_3090'
-flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE_Scale_ViT'
+flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE_Scale_ViT_ValidSave'
 flags['node'] = '将池化操作改为ViT，并将验证集改回来，优化ViT，添加LayerNorm，Attention改为自己的操作'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
@@ -218,16 +218,18 @@ if __name__ == "__main__":
     data_dir = flags['data_dir']
 
     train_path = os.path.join(data_dir, "train")
-    valid_path = os.path.join(data_dir, "test")
-    valid_test_path = os.path.join(data_dir, "valid")
+    valid_path = os.path.join(data_dir, "valid")
+    test_path = os.path.join(data_dir, "test")
 
     train_csv = os.path.join(data_dir, "train.csv")
     train_df = pd.read_csv(train_csv)
-    valid_csv = os.path.join(data_dir, "test.csv")
+    valid_csv = os.path.join(data_dir, "valid.csv")
     valid_df = pd.read_csv(valid_csv)
-
-    test_csv = os.path.join(data_dir, "valid_test.csv")
+    test_csv = os.path.join(data_dir, "test.csv")
     test_df = pd.read_csv(test_csv)
+
+    valid_test_csv = os.path.join(data_dir, "valid_test.csv")
+    valid_test_df = pd.read_csv(valid_test_csv)
 
     boneage_mean = train_df['boneage'].mean()
     boneage_div = train_df['boneage'].std()
@@ -237,7 +239,8 @@ if __name__ == "__main__":
 
     train_set = RSNATrainDataset(train_df, train_path, boneage_mean, boneage_div, flags['img_size'])
     valid_set = RSNAValidDataset(valid_df, valid_path, boneage_mean, boneage_div, flags['img_size'])
-    test_set = RSNAValidDataset(test_df, valid_test_path, boneage_mean, boneage_div, flags['img_size'])
+    test_set = RSNAValidDataset(test_df, test_path, boneage_mean, boneage_div, flags['img_size'])
+    valid_test_set = RSNAValidDataset(valid_test_df, valid_path, boneage_mean, boneage_div, flags['img_size'])
 
     print(train_set.__len__())
 
@@ -259,7 +262,7 @@ if __name__ == "__main__":
     )
 
     test_loader = torch.utils.data.DataLoader(
-        test_set,
+        valid_test_set,
         batch_size=12,
         shuffle=False,
         pin_memory=True
