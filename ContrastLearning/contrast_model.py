@@ -535,10 +535,10 @@ class Student_Contrast_Model_Pretrain_Vit(nn.Module):
         self.gender_encoder = backbone.gender_encoder
         self.gender_bn = backbone.gender_bn
 
-        self.vit_encoder = ViTEncoder(in_size=16, patch_size=2, depth=2, in_dim=2048, embed_dim=768, mlp_ratio=2)
+        self.vit_encoder = ViTEncoder(in_size=16, patch_size=2, depth=2, in_dim=2048, embed_dim=1024, mlp_ratio=2)
 
         self.fc = nn.Sequential(
-            nn.Linear(768 + 32, 1024),
+            nn.Linear(1024 + 32, 1024),
             nn.ReLU(),
             nn.Linear(1024, 512),
             nn.ReLU(),
@@ -826,3 +826,11 @@ if __name__ == '__main__':
     output, cls_token0, cls_token1, attn0, attn1, attn2, attn3 = student_Contrast(data, gender)
     print(f"x: {output.shape}\ncls_token0: {cls_token0.shape}\ncls_token1: {cls_token1.shape}")
 
+    student_Contrast_Pretrain = get_student_contrast_model_pretrain(
+        "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin").cuda()
+    print(f"student_Contrast_Pretrain Model: {sum(p.nelement() for p in student_Contrast_Pretrain.parameters() if p.requires_grad == True) / 1e6}M")
+
+    student_Contrast_Pretrain_vit = get_student_contrast_model_pretrain_vit(
+        "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin").cuda()
+    print(
+        f"student_Contrast_Pretrain_vit Model: {sum(p.nelement() for p in student_Contrast_Pretrain_vit.parameters() if p.requires_grad == True) / 1e6}M")

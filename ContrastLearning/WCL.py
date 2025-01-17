@@ -59,7 +59,7 @@ class WCL(nn.Module):
         one_hot_gender = F.one_hot(gender.type(torch.LongTensor), num_classes=2).squeeze().float().cuda()
         gender_mask = torch.matmul(one_hot_gender, one_hot_gender.t())
         score_matrix = score_matrix * gender_mask
-        print(score_matrix)
+        # print(score_matrix)
         return score_matrix
 
     def count_distance_out(self, logit):

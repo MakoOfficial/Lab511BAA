@@ -27,8 +27,8 @@ flags['img_size'] = 256
 flags['data_dir'] = '../archive'
 flags['backbone_path'] = '../../autodl-tmp/KD_All_Output_3090/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain.bin'
 flags['save_path'] = '../../autodl-tmp/Contrast_All_Output_3090'
-flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_96_Pretrain_FinalRegression_1_11'
-flags['node'] = '只做最后的分类， 取消BN，加入scale loss'
+flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_96_Pretrain_FinalRegression_ViT_1_17'
+flags['node'] = '将池化操作改为ViT，并将验证集改为测试集'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
@@ -183,11 +183,12 @@ if __name__ == "__main__":
     data_dir = flags['data_dir']
 
     train_path = os.path.join(data_dir, "train")
-    valid_path = os.path.join(data_dir, "valid")
+    valid_path = os.path.join(data_dir, "test")
+    test_valid_path = os.path.join(data_dir, "valid")
 
     train_csv = os.path.join(data_dir, "train.csv")
     train_df = pd.read_csv(train_csv)
-    valid_csv = os.path.join(data_dir, "valid.csv")
+    valid_csv = os.path.join(data_dir, "test.csv")
     valid_df = pd.read_csv(valid_csv)
     test_csv = os.path.join(data_dir, "valid_test.csv")
     test_df = pd.read_csv(test_csv)
@@ -200,7 +201,7 @@ if __name__ == "__main__":
 
     train_set = RSNATrainDataset(train_df, train_path, boneage_mean, boneage_div, flags['img_size'])
     valid_set = RSNAValidDataset(valid_df, valid_path, boneage_mean, boneage_div, flags['img_size'])
-    test_set = RSNAValidDataset(test_df, valid_path, boneage_mean, boneage_div, flags['img_size'])
+    test_set = RSNAValidDataset(test_df, test_valid_path, boneage_mean, boneage_div, flags['img_size'])
 
     print(train_set.__len__())
 

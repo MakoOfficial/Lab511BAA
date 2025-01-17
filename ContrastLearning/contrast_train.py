@@ -219,6 +219,7 @@ if __name__ == "__main__":
 
     train_path = os.path.join(data_dir, "train")
     valid_path = os.path.join(data_dir, "test")
+    valid_test_path = os.path.join(data_dir, "valid")
 
     train_csv = os.path.join(data_dir, "train.csv")
     train_df = pd.read_csv(train_csv)
@@ -236,7 +237,7 @@ if __name__ == "__main__":
 
     train_set = RSNATrainDataset(train_df, train_path, boneage_mean, boneage_div, flags['img_size'])
     valid_set = RSNAValidDataset(valid_df, valid_path, boneage_mean, boneage_div, flags['img_size'])
-    test_set = RSNAValidDataset(test_df, valid_path, boneage_mean, boneage_div, flags['img_size'])
+    test_set = RSNAValidDataset(test_df, valid_test_path, boneage_mean, boneage_div, flags['img_size'])
 
     print(train_set.__len__())
 
