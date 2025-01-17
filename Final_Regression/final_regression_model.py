@@ -95,6 +95,18 @@ class Final_Regression_ViT(nn.Module):
         self.backbone.cls_Embedding_0 = nn.Sequential()
         self.backbone.cls_Embedding_1 = nn.Sequential()
 
+    def evaluation(self, image, gender):
+        contrast_feature, _, _, attn0, attn1, attn2, attn3 = self.backbone.downStream(image, gender)
+
+        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))  # B * 32
+
+        x, attn_list = self.vit_encoder.evaluation(contrast_feature)
+
+        x = torch.cat([x, gender_encode], dim=1)
+
+        x = self.fc(x)
+
+        return x, attn_list
 
 def get_final_regression(backbone_path):
     backbone = Student_Contrast_Model_Pretrain(get_student())

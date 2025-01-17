@@ -141,20 +141,39 @@ class Attention(nn.Module):
         super(Attention, self).__init__()
         self.dim = dim
         self.scale = dim ** -0.5
-        self.qkv = nn.Linear(dim, dim * 3, bias=False)
+        self.q = nn.Linear(dim, dim, bias=False)
+        self.k = nn.Linear(dim, dim, bias=False)
+        self.v = nn.Linear(dim, dim, bias=False)
+        self.relu = nn.ReLU(inplace=True)
+        self.norm = nn.LayerNorm(dim)
         self.proj = nn.Linear(dim, dim)
+        self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x):
-
         B, N, C = x.shape
-        qkv = self.qkv(x).reshape(B, N, 3, C).permute(2, 0, 1, 3)
-        q, k, v = qkv[0], qkv[1], qkv[2]
-        attn = (q @ k.transpose(-2, -1)) * self.scale
+        q = self.norm(self.relu(self.q(x)))  # B N C
+        k = self.norm(self.relu(self.k(x)))  # B N C
+        v = self.norm(self.relu(self.v(x)))  # B N C
 
-        attn = attn.softmax(dim=-1)
-        x = (attn @ v).transpose(1, 2).reshape(B, N, C)
-        x = self.proj(x)
+        attn = torch.matmul(q, k.transpose(-1, -2))  # B N N
+        attn = self.softmax(attn * self.scale)
+
+        feature_out = torch.matmul(attn, v)  # B N C
+        x = self.proj(feature_out)
         return x
+
+    def evaluation(self, x):
+        B, N, C = x.shape
+        q = self.norm(self.relu(self.q(x)))  # B N C
+        k = self.norm(self.relu(self.k(x)))  # B N C
+        v = self.norm(self.relu(self.v(x)))  # B N C
+
+        attn = torch.matmul(q, k.transpose(-1, -2))  # B N N
+        attn = self.softmax(attn * self.scale)
+
+        feature_out = torch.matmul(attn, v) # B N C
+        x = self.proj(feature_out)
+        return x, attn
 
 
 class Mlp(nn.Module):
@@ -185,10 +204,20 @@ class Block(nn.Module):
         self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer)
 
     def forward(self, x):
+        x = self.norm1(x)
         x = x + self.attn(x)
+        x = self.norm2(x)
+        x = x + self.mlp(x)
+        return x
+
+    def evaluation(self, x):
+        x = self.norm1(x)
+        x_attn, attn = self.attn.evaluation(x)
+        x = x + x_attn
+        x = self.norm2(x)
         x = x + self.mlp(x)
 
-        return x
+        return x, attn
 
 
 class ViTEncoder(nn.Module):
@@ -209,10 +238,20 @@ class ViTEncoder(nn.Module):
 
         return feature
 
+    def evaluation(self, x):
+        feature = self.embedding_layer(x)   # [B, C, H, W] -> [B, (h*w), C_embed]
+        attn_list = []
+        for i in range(len(self.vit_blocks)):
+            feature, attn = self.vit_blocks[i].evaluation(feature)
+            attn_list.append(attn)
+        feature = feature.mean(dim=1)
+
+        return feature, attn_list
+
 
 if __name__ == '__main__':
     feature = torch.ones((32, 2048, 16, 16))
     vit = ViTEncoder(in_size=16, patch_size=2, depth=2, in_dim=2048, embed_dim=768, mlp_ratio=2)
     print(f"vit Model: {sum(p.nelement() for p in vit.parameters() if p.requires_grad == True) / 1e6}M")
-    output = vit(feature)
-    print(output.shape)
+    output, attn_list = vit.evaluation(feature)
+    print(attn_list[0].shape)
