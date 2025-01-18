@@ -535,7 +535,7 @@ class Student_Contrast_Model_Pretrain_Vit(nn.Module):
         self.gender_encoder = backbone.gender_encoder
         self.gender_bn = backbone.gender_bn
 
-        self.vit_encoder = ViTEncoder(in_size=16, patch_size=2, depth=2, in_dim=2048, embed_dim=1024, mlp_ratio=2)
+        self.vit_encoder = ViTEncoder(in_size=16, patch_size=2, depth=2, in_dim=2048, embed_dim=1024, attn_dim=2048, mlp_ratio=2)
 
         self.fc = nn.Sequential(
             nn.Linear(1024 + 32, 1024),
@@ -803,28 +803,28 @@ def get_student_contrast_model_End2End():
 #
 
 if __name__ == '__main__':
-    contrast_model = getContrastModel(
-        "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin")
-    print(f"Contrast Model: {sum(p.nelement() for p in contrast_model.parameters() if p.requires_grad == True) / 1e6}M")
+    # contrast_model = getContrastModel(
+    #     "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin")
+    # print(f"Contrast Model: {sum(p.nelement() for p in contrast_model.parameters() if p.requires_grad == True) / 1e6}M")
     # print(contrast_model)
 
-    student_GCN = get_student_GCN("../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin")
-    print(f"student_GCN Model: {sum(p.nelement() for p in student_GCN.parameters() if p.requires_grad == True) / 1e6}M")
-    print(student_GCN)
-
-    student_Contrast = get_student_contrast_model(
-        "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin").cuda()
-    print(f"student_Contrast Model: {sum(p.nelement() for p in student_Contrast.parameters() if p.requires_grad == True) / 1e6}M")
-    print(student_Contrast)
-
-    data = torch.rand(2, 1, 256, 256).cuda()
-    gender = torch.ones((2, 1)).cuda()
+    # student_GCN = get_student_GCN("../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin")
+    # print(f"student_GCN Model: {sum(p.nelement() for p in student_GCN.parameters() if p.requires_grad == True) / 1e6}M")
+    # print(student_GCN)
+    #
+    # student_Contrast = get_student_contrast_model(
+    #     "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin").cuda()
+    # print(f"student_Contrast Model: {sum(p.nelement() for p in student_Contrast.parameters() if p.requires_grad == True) / 1e6}M")
+    # print(student_Contrast)
+    #
+    # data = torch.rand(2, 1, 256, 256).cuda()
+    # gender = torch.ones((2, 1)).cuda()
 
     # output, cls_token0, token0_attn1, token0_attn2, cls_token1, token1_attn1, token1_attn2, attn0, attn1 = contrast_model(data, gender)
     # print(f"x: {output.shape}\ncls_token0: {cls_token0.shape}\ncls_token1: {cls_token1.shape}")
 
-    output, cls_token0, cls_token1, attn0, attn1, attn2, attn3 = student_Contrast(data, gender)
-    print(f"x: {output.shape}\ncls_token0: {cls_token0.shape}\ncls_token1: {cls_token1.shape}")
+    # output, cls_token0, cls_token1, attn0, attn1, attn2, attn3 = student_Contrast(data, gender)
+    # print(f"x: {output.shape}\ncls_token0: {cls_token0.shape}\ncls_token1: {cls_token1.shape}")
 
     student_Contrast_Pretrain = get_student_contrast_model_pretrain(
         "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin").cuda()
