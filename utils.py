@@ -6,6 +6,7 @@ import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
 from PIL import Image
+from einops import rearrange
 from collections import Counter
 
 stage6_boneage = [14, 12,
@@ -485,6 +486,8 @@ def save_attn_all_ViT(attn_list, img_ids, save_path):
         num_cols = 4
         for i in range(img_num):
             """对于第i张图片"""
+            attn = attn_list[i]
+            attn = rearrange(attn, 'b c (h w) -> b c h w', h=8, w=8)
             fig, axes = plt.subplots(1, num_cols, figsize=(15, 5))
             save_name = f"{int(img_ids[i])}.png"
 

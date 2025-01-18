@@ -1,7 +1,6 @@
 import torch
 from torch import nn
 
-
 class ChannelAttention(nn.Module):
     def __init__(self, in_planes, ratio=16):
         super(ChannelAttention, self).__init__()
@@ -137,99 +136,88 @@ class PatchEmbed(nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self, dim):
-        super(Attention, self).__init__()
-        self.dim = dim
-        self.scale = dim ** -0.5
-        self.q = nn.Linear(dim, dim, bias=False)
-        self.k = nn.Linear(dim, dim, bias=False)
-        self.v = nn.Linear(dim, dim, bias=False)
-        self.relu = nn.ReLU(inplace=True)
-        self.norm = nn.LayerNorm(dim)
-        self.proj = nn.Linear(dim, dim)
-        self.softmax = nn.Softmax(dim=-1)
-
-    def forward(self, x):
-        B, N, C = x.shape
-        q = self.norm(self.relu(self.q(x)))  # B N C
-        k = self.norm(self.relu(self.k(x)))  # B N C
-        v = self.norm(self.relu(self.v(x)))  # B N C
-
-        attn = torch.matmul(q, k.transpose(-1, -2))  # B N N
-        attn = self.softmax(attn * self.scale)
-
-        feature_out = torch.matmul(attn, v)  # B N C
-        x = self.proj(feature_out)
-        return x
-
-    def evaluation(self, x):
-        B, N, C = x.shape
-        q = self.norm(self.relu(self.q(x)))  # B N C
-        k = self.norm(self.relu(self.k(x)))  # B N C
-        v = self.norm(self.relu(self.v(x)))  # B N C
-
-        attn = torch.matmul(q, k.transpose(-1, -2))  # B N N
-        attn = self.softmax(attn * self.scale)
-
-        feature_out = torch.matmul(attn, v) # B N C
-        x = self.proj(feature_out)
-        return x, attn
-
-
-class Mlp(nn.Module):
-    def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU):
+    def __init__(self, dim=1024, attn_dim=1024):
         super().__init__()
-        out_features = out_features or in_features
-        hidden_features = hidden_features or in_features
-        self.fc1 = nn.Linear(in_features, hidden_features)
-        self.act = act_layer()
-        self.fc2 = nn.Linear(hidden_features, out_features)
+        self.scale = attn_dim ** -0.5
+        self.norm = nn.LayerNorm(dim)
+
+        self.attend = nn.Softmax(dim=-1)
+
+        self.to_qkv = nn.Linear(dim, attn_dim * 3, bias=False)
+        self.to_out = nn.Linear(attn_dim, dim, bias=False)
 
     def forward(self, x):
-        x = self.fc1(x)
-        x = self.act(x)
-        x = self.fc2(x)
-        return x
+        x = self.norm(x)
 
+        q, k, v = self.to_qkv(x).chunk(3, dim=-1)
 
-class Block(nn.Module):
-    def __init__(self, dim, mlp_ratio=2.):
-        super(Block, self).__init__()
-        act_layer = nn.GELU
-        norm_layer = nn.LayerNorm
-        self.norm1 = norm_layer(dim)
-        self.attn = Attention(dim)
-        self.norm2 = norm_layer(dim)
-        mlp_hidden_dim = int(dim * mlp_ratio)
-        self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer)
+        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
 
-    def forward(self, x):
-        x = self.norm1(x)
-        x = x + self.attn(x)
-        x = self.norm2(x)
-        x = x + self.mlp(x)
-        return x
+        attn = self.attend(dots)
+
+        out = torch.matmul(attn, v)
+        return self.to_out(out)
 
     def evaluation(self, x):
-        x = self.norm1(x)
-        x_attn, attn = self.attn.evaluation(x)
-        x = x + x_attn
-        x = self.norm2(x)
-        x = x + self.mlp(x)
+        x = self.norm(x)
 
-        return x, attn
+        q, k, v = self.to_qkv(x).chunk(3, dim=-1)
+
+        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
+
+        attn = self.attend(dots)
+
+        out = torch.matmul(attn, v)
+        return self.to_out(out), attn
+
+class FeedForward(nn.Module):
+    def __init__(self, dim, hidden_dim):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.LayerNorm(dim),
+            nn.Linear(dim, hidden_dim),
+            nn.GELU(),
+            nn.Linear(hidden_dim, dim),
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
+
+class Blocks(nn.Module):
+    def __init__(self, dim, depth, attn_dim, mlp_ratio):
+        super().__init__()
+        self.norm = nn.LayerNorm(dim)
+        self.layers = nn.ModuleList([])
+        self.mlp_dim = int(mlp_ratio * dim)
+        for _ in range(depth):
+            self.layers.append(nn.ModuleList([
+                Attention(dim, attn_dim=attn_dim),
+                FeedForward(dim, self.mlp_dim)
+            ]))
+
+    def forward(self, x):
+        for attn, ff in self.layers:
+            x = attn(x) + x
+            x = ff(x) + x
+        return self.norm(x)
+
+    def evaluation(self, x):
+        attn_list = []
+        for attn, ff in self.layers:
+            attn_x, attn_map = attn.evaluation(x)
+            attn_list.append(attn_map)
+            x = attn_x + x
+            x = ff(x) + x
+        return self.norm(x), attn_list
 
 
 class ViTEncoder(nn.Module):
-    def __init__(self, in_size=16, patch_size=1, depth=4, in_dim=2048, embed_dim=768, mlp_ratio=2):
+    def __init__(self, in_size=16, patch_size=1, depth=4, in_dim=2048, embed_dim=1024, attn_dim=1024, mlp_ratio=2):
         super().__init__()
         self.embedding_layer = PatchEmbed(in_size=in_size, patch_size=patch_size, in_dim=in_dim, embed_dim=embed_dim)
 
-        blocks = []
-        for _ in range(depth):
-            blocks.append(Block(dim=embed_dim,mlp_ratio=mlp_ratio))
-
-        self.vit_blocks = nn.Sequential(*blocks)
+        self.vit_blocks = Blocks(dim=embed_dim, depth=depth, attn_dim=attn_dim, mlp_ratio=mlp_ratio)
 
     def forward(self, x):
         patch_embedding = self.embedding_layer(x)   # [B, C, H, W] -> [B, (h*w), C_embed]
@@ -240,10 +228,8 @@ class ViTEncoder(nn.Module):
 
     def evaluation(self, x):
         feature = self.embedding_layer(x)   # [B, C, H, W] -> [B, (h*w), C_embed]
-        attn_list = []
-        for i in range(len(self.vit_blocks)):
-            feature, attn = self.vit_blocks[i].evaluation(feature)
-            attn_list.append(attn)
+        feature, attn_list = self.vit_blocks.evaluation(feature)
+
         feature = feature.mean(dim=1)
 
         return feature, attn_list
@@ -251,7 +237,9 @@ class ViTEncoder(nn.Module):
 
 if __name__ == '__main__':
     feature = torch.ones((32, 2048, 16, 16))
-    vit = ViTEncoder(in_size=16, patch_size=2, depth=2, in_dim=2048, embed_dim=768, mlp_ratio=2)
+    vit = ViTEncoder(in_size=16, patch_size=2, depth=2, in_dim=2048, embed_dim=1024, attn_dim=2048, mlp_ratio=2)
     print(f"vit Model: {sum(p.nelement() for p in vit.parameters() if p.requires_grad == True) / 1e6}M")
-    output, attn_list = vit.evaluation(feature)
-    print(attn_list[0].shape)
+    # output, attn_list = vit.evaluation(feature)
+    # print(attn_list[0].shape)
+    output = vit(feature)
+    print(output.shape)

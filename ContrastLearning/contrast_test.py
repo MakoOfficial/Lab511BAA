@@ -10,7 +10,7 @@ from datasets import RSNATestDataset, DHADataset
 from utils import log_valid_result_to_csv, save_attn_all, save_attn_all_KD, log_valid_result_logits_to_csv, l1_loss, show_attn_all_KD, l1_test_loss
 
 from Student.student_model import get_student, get_student_res18
-from ContrastLearning.contrast_model import get_student_contrast_model, get_student_contrast_model_pretrain
+from ContrastLearning.contrast_model import get_student_contrast_model, get_student_contrast_model_pretrain, get_student_contrast_model_pretrain_vit
 from Unet.UNets import get_Attn_Unet
 
 warnings.filterwarnings("ignore")
@@ -21,9 +21,9 @@ flags['num_workers'] = 8
 flags['data_dir'] = '../../Dataset/RSNA'
 flags['DHA_dir'] = 'E:/code/Dataset/DHA/Digital Hand Atlas'
 flags['student_path'] = "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
-flags['contrast_path'] = "../Contrast_Output/NoBN/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE.bin"
+flags['contrast_path'] = "../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE_Scale_ViT/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE_Scale_ViT.bin"
 
-flags['csv_name'] = "Contrast_Gender_Pretrain_NoBN_Scale_test.csv"
+flags['csv_name'] = "Contrast_Gender_Pretrain_NoBN_Scale_valid.csv"
 flags['DHA_option'] = False
 
 
@@ -59,7 +59,7 @@ def evaluate_fn(val_loader):
 
             log_valid_result_to_csv(id, label.cpu(), gender.cpu(), y_pred.cpu(), batch_loss.cpu(), log_path)
             # log_valid_result_logits_to_csv(id, label.cpu(), gender.cpu(), y_pred.cpu(), batch_loss.cpu(), logits_list.cpu(), log_path)
-            # save_attn_all_KD(s1, s2, s3, s4, id, ckp_dir)
+            save_attn_all_KD(s1, s2, s3, s4, id, ckp_dir)
             # show_attn_all_KD(s1[5], s2[5], s3[5], s4[5], id[5], ckp_dir)
     mae_loss = mae_loss / val_total_size
     print(f"valid loss: {mae_loss}")
@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
     student_path = flags['student_path']
     # student_model = get_student_contrast_model(student_path).cuda()
-    student_model = get_student_contrast_model_pretrain(student_path).cuda()
+    student_model = get_student_contrast_model_pretrain_vit(student_path).cuda()
 
     contrast_path = flags['contrast_path']
     student_model.load_state_dict(torch.load(contrast_path), strict=True)
@@ -87,22 +87,13 @@ if __name__ == "__main__":
     valid_path = os.path.join(data_dir, "valid")
     test_path = os.path.join(data_dir, "test")
 
-    train_csv_ori = os.path.join(data_dir, "train_4K.csv")
-    train_df_ori = pd.read_csv(train_csv_ori)
+    # train_csv_ori = os.path.join(data_dir, "train_4K.csv")
+    # train_df_ori = pd.read_csv(train_csv_ori)
     train_df = pd.read_csv(os.path.join(data_dir, "train.csv"))
-    test_df = pd.read_csv(os.path.join(data_dir, "Bone age ground truth.csv"))
+    valid_df = pd.read_csv(os.path.join(data_dir, "valid.csv"))
+    test_df = pd.read_csv(os.path.join(data_dir, "test.csv"))
 
-    if flags['DHA_option']:
-        valid_csv = os.path.join(flags['DHA_dir'], "label.csv")
-        valid_df = pd.read_csv(valid_csv)
-        valid_path = os.path.join(flags['DHA_dir'], "archive")
-        valid_Dataset = DHADataset
-        ckp_dir = flags['DHA_dir']
-    else:
-        valid_csv = os.path.join(data_dir, "valid.csv")
-        # valid_df = pd.read_csv("KD_All_Output/KD_modify_firstConv_RandomCrop/valid_loss_2.csv")
-        valid_df = pd.read_csv(valid_csv)
-        valid_Dataset = RSNATestDataset
+    valid_Dataset = RSNATestDataset
 
 
     boneage_mean = train_df['boneage'].mean()
@@ -141,6 +132,6 @@ if __name__ == "__main__":
         pin_memory=True
     )
 
-    # evaluate_fn(valid_loader)
+    evaluate_fn(valid_loader)
     # evaluate_fn(train_loader)
-    evaluate_fn(test_loader)
+    # evaluate_fn(test_loader)
