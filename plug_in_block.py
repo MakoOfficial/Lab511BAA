@@ -235,6 +235,41 @@ class ViTEncoder(nn.Module):
         return feature, attn_list
 
 
+class Self_Attention_Adj(nn.Module):
+    def __init__(self, feature_size, attention_size):
+        super(Self_Attention_Adj, self).__init__()
+        self.queue = nn.Parameter(torch.empty(feature_size, attention_size))
+        nn.init.kaiming_uniform_(self.queue)
+
+        self.key = nn.Parameter(torch.empty(feature_size, attention_size))
+        nn.init.kaiming_uniform_(self.key)
+
+        self.leak_relu = nn.LeakyReLU()
+
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, x):
+        x = x.transpose(1, 2)
+        Q = self.leak_relu(torch.matmul(x, self.queue))
+        K = self.leak_relu(torch.matmul(x, self.key))
+        attn = self.softmax(torch.matmul(Q, K.transpose(1, 2)))
+        return attn
+
+
+class Graph_GCN(nn.Module):
+    def __init__(self, node_size, feature_size, output_size):
+        super(Graph_GCN, self).__init__()
+        self.node_size = node_size
+        self.feature_size = feature_size
+        self.output_size = output_size
+        self.weight = nn.Parameter(torch.empty(feature_size, output_size))
+        nn.init.kaiming_uniform_(self.weight)
+
+    def forward(self, x, A):
+        x = torch.matmul(A, x.transpose(1, 2))
+        return (torch.matmul(x, self.weight)).transpose(1, 2)
+
+
 if __name__ == '__main__':
     feature = torch.ones((32, 2048, 16, 16))
     vit = ViTEncoder(in_size=16, patch_size=2, depth=2, in_dim=2048, embed_dim=1024, attn_dim=2048, mlp_ratio=2)

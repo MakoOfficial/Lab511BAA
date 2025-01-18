@@ -15,14 +15,14 @@ from datasets import RSNATrainDataset, RSNAValidDataset
 from utils import L1_penalty, log_contrast_losses_to_csv, save_attn_KD, save_contrast_attn_6Stage, label_distribute, \
     scale_loss
 
-from ContrastLearning.contrast_model import get_student_contrast_model, get_student_contrast_model_OnlyKD, get_student_contrast_model_pretrain, get_student_contrast_model_pretrain_vit
+from ContrastLearning.contrast_model import get_student_contrast_model, get_student_contrast_model_OnlyKD, get_student_contrast_model_pretrain, get_student_contrast_model_pretrain_vit, get_student_contrast_model_pretrain_gcn
 from ContrastLearning.triplet_loss import AdapitiveTripletLoss
 from ContrastLearning.WCL import WCL
 
 warnings.filterwarnings("ignore")
 
 flags = {}
-flags['lr'] = 2.5e-4
+flags['lr'] = 5e-4
 flags['batch_size'] = 96
 flags['num_workers'] = 8
 flags['num_epochs'] = 100
@@ -30,15 +30,15 @@ flags['img_size'] = 256
 flags['data_dir'] = '../archive'
 flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = '../../autodl-tmp/KD_All_Output_3090'
-flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE_Scale_ViT_ValidSave_1_18_1'
-flags['node'] = '将池化操作改为ViT，并将验证集改回来，优化ViT，参考官方的方法，但是没改PatchEmbed，没加入位置编码，修改参数'
+flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE_Scale_GCN_ValidSave_1_18'
+flags['node'] = '将池化操作前加入GCN'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
-flags['lr_decay_ratio'] = 0.65
+flags['lr_decay_ratio'] = 0.5
 flags['weight_decay'] = 0
 flags['best_loss'] = 0
-flags['triple_loss_0_lambda'] = 0.05
-flags['triple_loss_1_lambda'] = 0.05
+flags['triple_loss_0_lambda'] = 0.1
+flags['triple_loss_1_lambda'] = 0.1
 flags['WCL_setting'] = dict(p=0.5, tempS=1, thresholdS=0.1, tempW=0.2)
 
 
@@ -212,7 +212,7 @@ if __name__ == "__main__":
     # contrast_model = get_student_contrast_model(student_path=flags['student_path']).cuda()
     # contrast_model = get_student_contrast_model_OnlyKD(student_path=flags['student_path']).cuda()
     # contrast_model = get_student_contrast_model_pretrain(student_path=flags['student_path']).cuda()
-    contrast_model = get_student_contrast_model_pretrain_vit(student_path=flags['student_path']).cuda()
+    contrast_model = get_student_contrast_model_pretrain_gcn(student_path=flags['student_path']).cuda()
     # contrast_model = get_only_contrast_model(student_path=flags['student_path']).cuda()
     #   load data setting
     data_dir = flags['data_dir']
