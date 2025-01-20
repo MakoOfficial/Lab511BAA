@@ -18,13 +18,19 @@ data_dir = "E:/code/Dataset/RSNA"
 # }
 
 csv_map = {
-    "KD": '../Student/baseline/ResNet50_MSE_256_NoBN_AgeNorm/ResNet50_MSE_256_AgeNorm_valid.csv',
-    "Contrastive": '../Contrast_Output/NoBN/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE/Contrast_Gender_Pretrain_NoBN_Scale_test.csv',
+    "train": '../Contrast_Output/Contrast_Full_Pretrain_NoBN_Scale_GCN_1_19_alterLR_200epoch/Contrast_Gender_Pretrain_NoBN_Scale_train.csv',
+    "valid": '../Contrast_Output/Contrast_Full_Pretrain_NoBN_Scale_GCN_1_19_alterLR_200epoch/Contrast_Gender_Pretrain_NoBN_Scale_valid.csv',
+}
+
+
+# csv_map = {
+#     "KD": '../Student/baseline/ResNet50_MSE_256_NoBN_AgeNorm/ResNet50_MSE_256_AgeNorm_valid.csv',
+#     "Contrastive": '../Contrast_Output/NoBN/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE/Contrast_Gender_Pretrain_NoBN_Scale_test.csv',
     # "MSE: no BatchNorm": '../Student/baseline/ResNet_MSE_NoBN/ResNet50_MSE_256_train.csv',
     # "MSE Scale: no BatchNorm": '../Student/baseline/ResNet50_MSE_256_Scale_NoBN/ResNet50_MSE_256_train.csv',
     # "MSE Scale AgeNrom: no BatchNorm": '../Student/baseline/ResNet50_MSE_256_NoBN_AgeNorm/ResNet50_MSE_256_AgeNorm_valid.csv',
     # "Contrast MSE Scale AgeNrom: no BatchNorm": '../Contrast_Output/NoBN/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE/Contrast_Gender_Pretrain_NoBN_Scale_valid.csv'
-}
+# }
 # csv_map = {
     # "MAE: BatchNorm - Train": '../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain/Contrast_Gender_Pretrain_train.csv',
     # "MAE: BatchNorm - Valid": '../Contrast_Output/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain/Contrast_Gender_Pretrain_valid.csv',

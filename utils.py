@@ -765,8 +765,9 @@ def scale_loss_gender(label, male, male_distribute, female_distribute):
 
 def l1_loss(pred, boneage):
     # p = 0.5864
-    p = 0.572689 # NoBN
+    # p = 0.572689 # NoBN
     # p = 0.5954
+    p = 0.5705
     new_pred = (pred - boneage) * p + boneage
     return new_pred, torch.abs(boneage - new_pred)
 

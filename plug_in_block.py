@@ -238,21 +238,25 @@ class ViTEncoder(nn.Module):
 class Self_Attention_Adj(nn.Module):
     def __init__(self, feature_size, attention_size):
         super(Self_Attention_Adj, self).__init__()
-        self.queue = nn.Parameter(torch.empty(feature_size, attention_size))
-        nn.init.kaiming_uniform_(self.queue)
+        # self.queue = nn.Parameter(torch.empty(feature_size, attention_size))
+        # nn.init.kaiming_uniform_(self.queue)
+        self.queue = nn.Linear(in_features=feature_size, out_features=attention_size)
 
-        self.key = nn.Parameter(torch.empty(feature_size, attention_size))
-        nn.init.kaiming_uniform_(self.key)
+        # self.key = nn.Parameter(torch.empty(feature_size, attention_size))
+        # nn.init.kaiming_uniform_(self.key)
+        self.key = nn.Linear(in_features=feature_size, out_features=attention_size)
 
         self.leak_relu = nn.LeakyReLU()
 
         self.softmax = nn.Softmax(dim=-1)
 
-    def forward(self, x):
-        x = x.transpose(1, 2)
-        Q = self.leak_relu(torch.matmul(x, self.queue))
-        K = self.leak_relu(torch.matmul(x, self.key))
-        attn = self.softmax(torch.matmul(Q, K.transpose(1, 2)))
+    def forward(self, x): # B C (HW)
+        x = x.transpose(1, 2)    # B (HW) C
+        # Q = self.leak_relu(torch.matmul(x, self.queue)) # B (HW) C_attn
+        # K = self.leak_relu(torch.matmul(x, self.key)) # B (HW) C_attn
+        Q = self.leak_relu(self.queue(x))  # B (HW) C_attn
+        K = self.leak_relu(self.key(x))  # B (HW) C_attn
+        attn = self.softmax(torch.matmul(Q, K.transpose(1, 2))) # B (HW) (HW)
         return attn
 
 
@@ -262,12 +266,14 @@ class Graph_GCN(nn.Module):
         self.node_size = node_size
         self.feature_size = feature_size
         self.output_size = output_size
-        self.weight = nn.Parameter(torch.empty(feature_size, output_size))
-        nn.init.kaiming_uniform_(self.weight)
+        # self.weight = nn.Parameter(torch.empty(feature_size, output_size))
+        # nn.init.kaiming_uniform_(self.weight)
+        self.weight = nn.Linear(feature_size, output_size)
 
     def forward(self, x, A):
-        x = torch.matmul(A, x.transpose(1, 2))
-        return (torch.matmul(x, self.weight)).transpose(1, 2)
+        x = torch.matmul(A, x.transpose(1, 2))  # B (HW) C
+        # return (torch.matmul(x, self.weight)).transpose(1, 2)
+        return self.weight(x).transpose(1, 2)
 
 
 if __name__ == '__main__':

@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR, MultiStepLR
 from torch.utils.data import Dataset
 
 from datasets import RSNATrainDataset, RSNAValidDataset
@@ -25,16 +25,17 @@ flags = {}
 flags['lr'] = 5e-4
 flags['batch_size'] = 96
 flags['num_workers'] = 8
-flags['num_epochs'] = 100
+flags['num_epochs'] = 150
 flags['img_size'] = 256
 flags['data_dir'] = '../archive'
 flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = '../../autodl-tmp/KD_All_Output_3090'
-flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE_Scale_GCN_ValidSave_1_18'
-flags['node'] = '将池化操作前加入GCN'
+flags['model_name'] = 'Contrast_Full_Pretrain_NoBN_Scale_AlterGCN_1_20_alterLR'
+flags['node'] = '将池化操作前加入GCN，修改学习率衰减策略'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
-flags['lr_decay_ratio'] = 0.5
+flags['lr_decay_ratio'] = 0.65
+flags['lr_decay_multi_step'] = [10, 20, 40, 48, 54, 77, 97, 117, 130, 150]
 flags['weight_decay'] = 0
 flags['best_loss'] = 0
 flags['triple_loss_0_lambda'] = 0.1
@@ -165,7 +166,8 @@ def training_start(flags):
 
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, contrast_model.parameters()),
                                  lr=flags['lr'], weight_decay=flags['weight_decay'])
-    scheduler = StepLR(optimizer, step_size=flags['lr_decay_step'], gamma=flags['lr_decay_ratio'])
+    # scheduler = StepLR(optimizer, step_size=flags['lr_decay_step'], gamma=flags['lr_decay_ratio'])
+    scheduler = MultiStepLR(optimizer, milestones=flags['lr_decay_multi_step'], gamma=flags['lr_decay_ratio'])
 
     ## Trains
     for epoch in range(flags['num_epochs']):
