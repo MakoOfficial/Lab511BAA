@@ -454,15 +454,16 @@ class Student_Contrast_Model_Pretrain(nn.Module):
         self.gender_encoder = backbone.gender_encoder
         self.gender_bn = backbone.gender_bn
 
-        self.fc = nn.Sequential(
-            nn.Linear(2048 + 32, 1024),
-            # nn.BatchNorm1d(1024),
-            nn.ReLU(),
-            nn.Linear(1024, 512),
-            # nn.BatchNorm1d(512),
-            nn.ReLU(),
-            nn.Linear(512, 1)
-        )
+        # self.fc = nn.Sequential(
+        #     nn.Linear(2048 + 32, 1024),
+        #     # nn.BatchNorm1d(1024),
+        #     nn.ReLU(),
+        #     nn.Linear(1024, 512),
+        #     # nn.BatchNorm1d(512),
+        #     nn.ReLU(),
+        #     nn.Linear(512, 1)
+        # )
+        self.fc = backbone.fc
 
         self.cls_Embedding_0 = nn.Sequential(
             nn.Linear(1024, 512),
@@ -604,15 +605,9 @@ class Student_Contrast_Model_Pretrain_GCN(nn.Module):
         self.gender_bn = backbone.gender_bn
 
         self.adj_learning = Self_Attention_Adj(2048, 256)
-        self.gconv = Graph_GCN(16, 2048, 1024)
+        self.gconv = Graph_GCN(16, 2048, 2048)
 
-        self.fc = nn.Sequential(
-            nn.Linear(1024 + 32, 1024),
-            nn.ReLU(),
-            nn.Linear(1024, 512),
-            nn.ReLU(),
-            nn.Linear(512, 1)
-        )
+        self.fc = backbone.fc
 
         self.cls_Embedding_0 = nn.Sequential(
             nn.Linear(1024, 512),
