@@ -22,7 +22,7 @@ from ContrastLearning.WCL import WCL
 warnings.filterwarnings("ignore")
 
 flags = {}
-flags['lr'] = 1e-3
+flags['lr'] = 5e-4
 flags['batch_size'] = 96
 flags['num_workers'] = 8
 flags['num_epochs'] = 150
@@ -30,11 +30,11 @@ flags['img_size'] = 256
 flags['data_dir'] = '../archive'
 flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = '../../autodl-tmp/KD_All_Output_3090'
-flags['model_name'] = 'Contrast_Full_Pretrain_NoBN_Scale_AlterGCN_1_21_alterLR_Version2'
+flags['model_name'] = 'Contrast_Full_Pretrain_NoBN_Scale_1_21'
 flags['node'] = '将池化操作前加入GCN，修改学习率衰减策略'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
-flags['lr_decay_ratio'] = 0.65
+flags['lr_decay_ratio'] = 0.5
 flags['lr_decay_multi_step'] = [10, 20, 40, 48, 54, 77, 97, 117, 130, 150]
 flags['weight_decay'] = 0
 flags['best_loss'] = 0
@@ -89,8 +89,8 @@ def train_fn(train_loader, loss_fn, triple_fn, optimizer):
         label = label.squeeze()
 
         loss = loss_fn(y_pred, label)
-        scale_param = scale_loss(img_gt, label_dis)
-        loss = (scale_param * loss).sum()
+        # scale_param = scale_loss(img_gt, label_dis)
+        # loss = (scale_param * loss).sum()
         triple_loss_0 = triple_fn(cls_token0, img_gt, gender)
         triple_loss_1 = triple_fn(cls_token1, img_gt, gender)
 
@@ -157,8 +157,8 @@ def evaluate_fn(val_loader):
 def training_start(flags):
     ## Network, optimizer, and loss function creation
     best_loss = float('inf')
-    # loss_fn = nn.L1Loss(reduction='sum')
-    loss_fn = nn.MSELoss(reduction='none')
+    loss_fn = nn.L1Loss(reduction='sum')
+    # loss_fn = nn.MSELoss(reduction='none')
     # triple_fn = AdapitiveTripletLoss()
     wcl_setting = flags['WCL_setting']
     triple_fn = WCL(p=wcl_setting['p'], tempS=wcl_setting['tempS'], thresholdS=wcl_setting['thresholdS'], tempW=wcl_setting['tempW'])
@@ -213,9 +213,9 @@ if __name__ == "__main__":
     #   prepare contrast learning model
     # contrast_model = get_student_contrast_model(student_path=flags['student_path']).cuda()
     # contrast_model = get_student_contrast_model_OnlyKD(student_path=flags['student_path']).cuda()
-    # contrast_model = get_student_contrast_model_pretrain(student_path=flags['student_path']).cuda()
+    contrast_model = get_student_contrast_model_pretrain(student_path=flags['student_path']).cuda()
     # contrast_model = get_student_contrast_model_pretrain_gcn(student_path=flags['student_path']).cuda()
-    contrast_model = get_student_contrast_model_pretrain_gcn_V2(student_path=flags['student_path']).cuda()
+    # contrast_model = get_student_contrast_model_pretrain_gcn_V2(student_path=flags['student_path']).cuda()
     # contrast_model = get_only_contrast_model(student_path=flags['student_path']).cuda()
     #   load data setting
     data_dir = flags['data_dir']
