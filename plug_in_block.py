@@ -279,6 +279,50 @@ class Graph_GCN(nn.Module):
         return x_output
 
 
+class Graph_GCN_V2(nn.Module):
+    """输入为resnet的第3层和第4层输出，[B, 1024, 32, 32]，[B, 2048, 16, 16]
+        将cls_tokem的获取改为平均池化
+    """
+    def __init__(self, in_channels, attn_dim, in_size) -> None:
+        super().__init__()
+        self.in_channels = in_channels
+        self.attn_dim = attn_dim
+        self.scale = attn_dim ** -0.5
+        self.in_size = in_size
+
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        # self.max_pool = nn.AdaptiveMaxPool2d(1)
+
+        self.q = nn.Linear(in_channels, attn_dim, bias=False)
+        self.k = nn.Linear(in_channels, attn_dim, bias=False)
+        self.v = nn.Linear(in_channels, attn_dim, bias=False)
+        self.relu = nn.ReLU(inplace=True)
+        self.fc2 = nn.Conv2d(attn_dim, in_channels, 1, bias=False)
+        self.sigmoid = nn.Sigmoid()
+        self.norm = nn.LayerNorm(attn_dim)
+        self.softmax = nn.Softmax(dim=-1)
+
+        # self.ffn = CNNFeedForward(in_channels, 2*in_channels)
+
+    def forward(self, x, gender_encode):
+        B, C, H, W = x.shape
+        feature_vector = rearrange(x, 'b d h w -> b (h w) d')
+        q = self.norm(self.relu(self.q(feature_vector)))   # B (HxW) attn_dim
+        k = self.norm(self.relu(self.k(feature_vector)))  # B (HxW) attn_dim
+        v = self.norm(self.relu(self.v(feature_vector)))  # B (HxW) attn_dim
+
+        attn = torch.matmul(q, k.transpose(-1, -2))  # B (HxW) (HxW)
+        attn = self.softmax(attn * self.scale)  # B (HxW) (HxW)
+
+        feature_out = torch.matmul(attn, v) # B (HxW) attn_dim
+
+        feature_out = feature_out.reshape(B, -1, self.in_size, self.in_size)   # B, attn_dim, 1, 1
+
+        feature_out = self.fc2(feature_out) # B, in_channel, H, W
+
+        return feature_out
+
+
 if __name__ == '__main__':
     feature = torch.ones((32, 2048, 16, 16))
     vit = ViTEncoder(in_size=16, patch_size=2, depth=2, in_dim=2048, embed_dim=1024, attn_dim=2048, mlp_ratio=2)

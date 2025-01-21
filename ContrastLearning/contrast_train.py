@@ -30,11 +30,11 @@ flags['img_size'] = 256
 flags['data_dir'] = '../archive'
 flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = '../../autodl-tmp/KD_All_Output_3090'
-flags['model_name'] = 'Contrast_Full_Pretrain_NoBN_Scale_AlterGCN_1_20_alterLR'
-flags['node'] = '将池化操作前加入GCN，修改学习率衰减策略'
+flags['model_name'] = 'Contrast_Full_Pretrain_MAE_AlterGCNV2_1_22_alterLR'
+flags['node'] = '改GCN为普通自注意力、使用Pretrained的fc、取消MSE Loss、取消Scale Loss'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
-flags['lr_decay_ratio'] = 0.65
+flags['lr_decay_ratio'] = 0.5
 flags['lr_decay_multi_step'] = [10, 20, 40, 48, 54, 77, 97, 117, 130, 150]
 flags['weight_decay'] = 0
 flags['best_loss'] = 0
@@ -166,8 +166,8 @@ def training_start(flags):
 
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, contrast_model.parameters()),
                                  lr=flags['lr'], weight_decay=flags['weight_decay'])
-    # scheduler = StepLR(optimizer, step_size=flags['lr_decay_step'], gamma=flags['lr_decay_ratio'])
-    scheduler = MultiStepLR(optimizer, milestones=flags['lr_decay_multi_step'], gamma=flags['lr_decay_ratio'])
+    scheduler = StepLR(optimizer, step_size=flags['lr_decay_step'], gamma=flags['lr_decay_ratio'])
+    # scheduler = MultiStepLR(optimizer, milestones=flags['lr_decay_multi_step'], gamma=flags['lr_decay_ratio'])
 
     ## Trains
     for epoch in range(flags['num_epochs']):
@@ -214,8 +214,8 @@ if __name__ == "__main__":
     # contrast_model = get_student_contrast_model(student_path=flags['student_path']).cuda()
     # contrast_model = get_student_contrast_model_OnlyKD(student_path=flags['student_path']).cuda()
     # contrast_model = get_student_contrast_model_pretrain(student_path=flags['student_path']).cuda()
-    contrast_model = get_student_contrast_model_pretrain_gcn(student_path=flags['student_path']).cuda()
-    # contrast_model = get_student_contrast_model_pretrain_gcn_V2(student_path=flags['student_path']).cuda()
+    # contrast_model = get_student_contrast_model_pretrain_gcn(student_path=flags['student_path']).cuda()
+    contrast_model = get_student_contrast_model_pretrain_gcn_V2(student_path=flags['student_path']).cuda()
     # contrast_model = get_only_contrast_model(student_path=flags['student_path']).cuda()
     #   load data setting
     data_dir = flags['data_dir']

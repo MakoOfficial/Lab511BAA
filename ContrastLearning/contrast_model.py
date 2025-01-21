@@ -7,7 +7,7 @@ from Student.student_classifier import get_student_class
 from torchvision.models import resnet50, resnet18
 from ContrastLearning.vit_model_old import getViTBlock
 from Unet.UNets import Attention_block
-from plug_in_block import CBAM, GatingBlock, ViTEncoder, Self_Attention_Adj, Graph_GCN
+from plug_in_block import CBAM, GatingBlock, ViTEncoder, Self_Attention_Adj, Graph_GCN, Graph_GCN_V2
 
 def get_pretrained_resnet50(pretrained=True):
     model = resnet50(pretrained=pretrained)
@@ -665,23 +665,15 @@ class Student_Contrast_Model_Pretrain_GCN_Version2(nn.Module):
 
         self.backbone2 = backbone.backbone2
         self.Ada0 = AdaA(1024, 768, 32)
-        self.adj_learning0 = Self_Attention_Adj(1024, 256)
-        self.gconv0 = Graph_GCN(32, 1024, 1024)
         self.backbone3 = backbone.backbone3
         self.Ada1 = AdaA(2048, 768, 16)
-        self.adj_learning1 = Self_Attention_Adj(2048, 256)
-        self.gconv1 = Graph_GCN(16, 2048, 1024)
+
+        self.gcn = Graph_GCN_V2(2048, 1024, 16)
 
         self.gender_encoder = backbone.gender_encoder
         self.gender_bn = backbone.gender_bn
 
-        self.fc = nn.Sequential(
-            nn.Linear(1024 + 32, 1024),
-            nn.ReLU(),
-            nn.Linear(1024, 512),
-            nn.ReLU(),
-            nn.Linear(512, 1)
-        )
+        self.fc = backbone.fc
 
         self.cls_Embedding_0 = nn.Sequential(
             nn.Linear(1024, 512),
@@ -699,16 +691,10 @@ class Student_Contrast_Model_Pretrain_GCN_Version2(nn.Module):
         gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))
         x0, attn0 = self.attn0(self.backbone0(image))
         x1, attn1 = self.attn1(self.backbone1(x0))
-
         x2, cls_token2, attn2 = self.Ada0(self.backbone2(x1), gender_encode)
-        node_feature2 = x2.view(-1, 1024, 32 * 32)
-        A2 = self.adj_learning0(node_feature2)
-        x2 = F.leaky_relu(self.gconv0(node_feature2, A2)) #
-
         x3, cls_token3, attn3 = self.Ada1(self.backbone3(x2), gender_encode)
-        node_feature3 = x3.view(-1, 2048, 16 * 16)
-        A3 = self.adj_learning1(node_feature3)
-        x3 = F.leaky_relu(self.gconv1(node_feature3, A3))
+
+        x3 = self.gcn(x3)
 
         x = F.adaptive_avg_pool2d(x3, 1)
         x = torch.flatten(x, 1)
