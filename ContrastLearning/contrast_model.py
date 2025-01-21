@@ -658,6 +658,83 @@ class Student_Contrast_Model_Pretrain_GCN(nn.Module):
             param.requires_grad = False
 
 
+class Student_Contrast_Model_Pretrain_GCN_Version2(nn.Module):
+    def __init__(self, backbone):
+        super(Student_Contrast_Model_Pretrain_GCN_Version2, self).__init__()
+        self.backbone0 = backbone.backbone0
+        self.attn0 = backbone.attn0
+        self.backbone1 = backbone.backbone1
+        self.attn1 = backbone.attn1
+        self.freeze_params()
+
+        self.backbone2 = backbone.backbone2
+        self.Ada0 = AdaA(1024, 768, 32)
+        self.adj_learning0 = Self_Attention_Adj(1024, 256)
+        self.gconv0 = Graph_GCN(32 * 32, 1024, 1024)
+        self.backbone3 = backbone.backbone3
+        self.Ada1 = AdaA(2048, 768, 16)
+        self.adj_learning1 = Self_Attention_Adj(2048, 256)
+        self.gconv1 = Graph_GCN(16 * 16, 2048, 1024)
+
+        self.gender_encoder = backbone.gender_encoder
+        self.gender_bn = backbone.gender_bn
+
+        self.fc = nn.Sequential(
+            nn.Linear(1024 + 32, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, 512),
+            nn.ReLU(),
+            nn.Linear(512, 1)
+        )
+
+        self.cls_Embedding_0 = nn.Sequential(
+            nn.Linear(1024, 512),
+            nn.ReLU(),
+            nn.Linear(512, 1024)
+        )
+
+        self.cls_Embedding_1 = nn.Sequential(
+            nn.Linear(2048, 512),
+            nn.ReLU(),
+            nn.Linear(512, 1024)
+        )
+
+    def forward(self, image, gender):
+        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))
+        x0, attn0 = self.attn0(self.backbone0(image))
+        x1, attn1 = self.attn1(self.backbone1(x0))
+
+        x2, cls_token2, attn2 = self.Ada0(self.backbone2(x1), gender_encode)
+        node_feature2 = x2.view(-1, 1024, 32 * 32)
+        A2 = self.adj_learning0(node_feature2)
+        x2 = F.leaky_relu(self.gconv0(node_feature2, A2))
+
+        x3, cls_token3, attn3 = self.Ada1(self.backbone3(x2), gender_encode)
+        node_feature3 = x3.view(-1, 2048, 16 * 16)
+        A3 = self.adj_learning1(node_feature3)
+        x = F.leaky_relu(self.gconv1(node_feature3, A3))
+        x = torch.squeeze(F.adaptive_avg_pool1d(x, 1))
+
+        x = torch.cat([x, gender_encode], dim=1)
+
+        cls_token2 = F.normalize(self.cls_Embedding_0(cls_token2), dim=1)
+        cls_token3 = F.normalize(self.cls_Embedding_1(cls_token3), dim=1)
+
+        x = self.fc(x)
+
+        return x, cls_token2, cls_token3, attn0, attn1, attn2, attn3
+
+    def freeze_params(self):
+        for _, param in self.backbone0.named_parameters():
+            param.requires_grad = False
+        for _, param in self.attn0.named_parameters():
+            param.requires_grad = False
+        for _, param in self.backbone1.named_parameters():
+            param.requires_grad = False
+        for _, param in self.attn1.named_parameters():
+            param.requires_grad = False
+
+
 class Student_Contrast_Model_End2End(nn.Module):
     def __init__(self, backbone_res):
         super(Student_Contrast_Model_End2End, self).__init__()
@@ -844,6 +921,13 @@ def get_student_contrast_model_pretrain_gcn(student_path):
     if student_path is not None:
         backbone.load_state_dict(torch.load(student_path))
     return Student_Contrast_Model_Pretrain_GCN(backbone)
+
+
+def get_student_contrast_model_pretrain_gcn_V2(student_path):
+    backbone = get_student()
+    if student_path is not None:
+        backbone.load_state_dict(torch.load(student_path))
+    return Student_Contrast_Model_Pretrain_GCN_Version2(backbone)
 
 
 def get_student_contrast_model_OnlyKD(student_path):

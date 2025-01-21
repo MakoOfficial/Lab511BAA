@@ -15,14 +15,14 @@ from datasets import RSNATrainDataset, RSNAValidDataset
 from utils import L1_penalty, log_contrast_losses_to_csv, save_attn_KD, save_contrast_attn_6Stage, label_distribute, \
     scale_loss
 
-from ContrastLearning.contrast_model import get_student_contrast_model, get_student_contrast_model_OnlyKD, get_student_contrast_model_pretrain, get_student_contrast_model_pretrain_vit, get_student_contrast_model_pretrain_gcn
+from ContrastLearning.contrast_model import get_student_contrast_model, get_student_contrast_model_OnlyKD, get_student_contrast_model_pretrain, get_student_contrast_model_pretrain_vit, get_student_contrast_model_pretrain_gcn, get_student_contrast_model_pretrain_gcn_V2
 from ContrastLearning.triplet_loss import AdapitiveTripletLoss
 from ContrastLearning.WCL import WCL
 
 warnings.filterwarnings("ignore")
 
 flags = {}
-flags['lr'] = 5e-4
+flags['lr'] = 1e-3
 flags['batch_size'] = 96
 flags['num_workers'] = 8
 flags['num_epochs'] = 150
@@ -30,7 +30,7 @@ flags['img_size'] = 256
 flags['data_dir'] = '../archive'
 flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = '../../autodl-tmp/KD_All_Output_3090'
-flags['model_name'] = 'Contrast_Full_Pretrain_NoBN_Scale_AlterGCN_1_20_alterLR'
+flags['model_name'] = 'Contrast_Full_Pretrain_NoBN_Scale_AlterGCN_1_21_alterLR_Version2'
 flags['node'] = '将池化操作前加入GCN，修改学习率衰减策略'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
@@ -214,7 +214,8 @@ if __name__ == "__main__":
     # contrast_model = get_student_contrast_model(student_path=flags['student_path']).cuda()
     # contrast_model = get_student_contrast_model_OnlyKD(student_path=flags['student_path']).cuda()
     # contrast_model = get_student_contrast_model_pretrain(student_path=flags['student_path']).cuda()
-    contrast_model = get_student_contrast_model_pretrain_gcn(student_path=flags['student_path']).cuda()
+    # contrast_model = get_student_contrast_model_pretrain_gcn(student_path=flags['student_path']).cuda()
+    contrast_model = get_student_contrast_model_pretrain_gcn_V2(student_path=flags['student_path']).cuda()
     # contrast_model = get_only_contrast_model(student_path=flags['student_path']).cuda()
     #   load data setting
     data_dir = flags['data_dir']
