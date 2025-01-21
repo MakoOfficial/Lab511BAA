@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from einops import rearrange
 
 class ChannelAttention(nn.Module):
     def __init__(self, in_planes, ratio=16):
@@ -273,7 +274,9 @@ class Graph_GCN(nn.Module):
     def forward(self, x, A):
         x = torch.matmul(A, x.transpose(1, 2))  # B (HW) C
         # return (torch.matmul(x, self.weight)).transpose(1, 2)
-        return self.weight(x).transpose(1, 2)
+        x = self.weight(x).transpose(1, 2)  # B C (HW)
+        x_output = rearrange(x, 'b d (h w) -> b d h w', h=self.node_size, w=self.node_size)   # B C H W
+        return x_output
 
 
 if __name__ == '__main__':

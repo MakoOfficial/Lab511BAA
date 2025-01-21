@@ -604,7 +604,7 @@ class Student_Contrast_Model_Pretrain_GCN(nn.Module):
         self.gender_bn = backbone.gender_bn
 
         self.adj_learning = Self_Attention_Adj(2048, 256)
-        self.gconv = Graph_GCN(16 * 16, 2048, 1024)
+        self.gconv = Graph_GCN(16, 2048, 1024)
 
         self.fc = nn.Sequential(
             nn.Linear(1024 + 32, 1024),
@@ -636,7 +636,8 @@ class Student_Contrast_Model_Pretrain_GCN(nn.Module):
         node_feature = x3.view(-1, 2048, 16 * 16)
         A = self.adj_learning(node_feature)
         x = F.leaky_relu(self.gconv(node_feature, A))
-        x = torch.squeeze(F.adaptive_avg_pool1d(x, 1))
+        x = F.adaptive_avg_pool2d(x, 1)
+        x = torch.flatten(x, 1)
 
         x = torch.cat([x, gender_encode], dim=1)
 
@@ -670,11 +671,11 @@ class Student_Contrast_Model_Pretrain_GCN_Version2(nn.Module):
         self.backbone2 = backbone.backbone2
         self.Ada0 = AdaA(1024, 768, 32)
         self.adj_learning0 = Self_Attention_Adj(1024, 256)
-        self.gconv0 = Graph_GCN(32 * 32, 1024, 1024)
+        self.gconv0 = Graph_GCN(32, 1024, 1024)
         self.backbone3 = backbone.backbone3
         self.Ada1 = AdaA(2048, 768, 16)
         self.adj_learning1 = Self_Attention_Adj(2048, 256)
-        self.gconv1 = Graph_GCN(16 * 16, 2048, 1024)
+        self.gconv1 = Graph_GCN(16, 2048, 1024)
 
         self.gender_encoder = backbone.gender_encoder
         self.gender_bn = backbone.gender_bn
@@ -707,13 +708,15 @@ class Student_Contrast_Model_Pretrain_GCN_Version2(nn.Module):
         x2, cls_token2, attn2 = self.Ada0(self.backbone2(x1), gender_encode)
         node_feature2 = x2.view(-1, 1024, 32 * 32)
         A2 = self.adj_learning0(node_feature2)
-        x2 = F.leaky_relu(self.gconv0(node_feature2, A2))
+        x2 = F.leaky_relu(self.gconv0(node_feature2, A2)) #
 
         x3, cls_token3, attn3 = self.Ada1(self.backbone3(x2), gender_encode)
         node_feature3 = x3.view(-1, 2048, 16 * 16)
         A3 = self.adj_learning1(node_feature3)
-        x = F.leaky_relu(self.gconv1(node_feature3, A3))
-        x = torch.squeeze(F.adaptive_avg_pool1d(x, 1))
+        x3 = F.leaky_relu(self.gconv1(node_feature3, A3))
+
+        x = F.adaptive_avg_pool2d(x3, 1)
+        x = torch.flatten(x, 1)
 
         x = torch.cat([x, gender_encode], dim=1)
 
