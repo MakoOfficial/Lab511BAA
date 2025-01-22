@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from einops import rearrange
+import torch.nn.functional as F
 
 class ChannelAttention(nn.Module):
     def __init__(self, in_planes, ratio=16):
@@ -280,9 +281,6 @@ class Graph_GCN(nn.Module):
 
 
 class Graph_GCN_V2(nn.Module):
-    """输入为resnet的第3层和第4层输出，[B, 1024, 32, 32]，[B, 2048, 16, 16]
-        将cls_tokem的获取改为平均池化
-    """
     def __init__(self, in_channels, attn_dim, in_size) -> None:
         super().__init__()
         self.in_channels = in_channels
@@ -371,11 +369,84 @@ class Graph_GCN_V3(nn.Module):
         return feature_out
 
 
+class NLBlockND(nn.Module):
+    def __init__(self, in_channels, inter_channels=None, bn_layer=True):
+        super(NLBlockND, self).__init__()
+        self.in_channels = in_channels
+        self.inter_channels = inter_channels
+
+        # the channel size is reduced to half inside the block
+        if self.inter_channels is None:
+            self.inter_channels = in_channels // 2
+            if self.inter_channels == 0:
+                self.inter_channels = 1
+
+        conv_nd = nn.Conv2d
+        bn = nn.BatchNorm2d
+
+        # function g in the paper which goes through conv. with kernel size 1
+        self.g = conv_nd(in_channels=self.in_channels, out_channels=self.inter_channels, kernel_size=1)
+
+        # add BatchNorm layer after the last conv layer
+        if bn_layer:
+            self.W_z = nn.Sequential(
+                conv_nd(in_channels=self.inter_channels, out_channels=self.in_channels, kernel_size=1),
+                bn(self.in_channels)
+            )
+            # from section 4.1 of the paper, initializing params of BN ensures that the initial state of non-local block is identity mapping
+            nn.init.constant_(self.W_z[1].weight, 0)
+            nn.init.constant_(self.W_z[1].bias, 0)
+        else:
+            self.W_z = conv_nd(in_channels=self.inter_channels, out_channels=self.in_channels, kernel_size=1)
+
+            # from section 3.3 of the paper by initializing Wz to 0, this block can be inserted to any existing architecture
+            nn.init.constant_(self.W_z.weight, 0)
+            nn.init.constant_(self.W_z.bias, 0)
+
+        self.theta = conv_nd(in_channels=self.in_channels, out_channels=self.inter_channels, kernel_size=1)
+        self.phi = conv_nd(in_channels=self.in_channels, out_channels=self.inter_channels, kernel_size=1)
+
+    def forward(self, x):
+        """
+        args
+            x: (N, C, H, W) for dimension 2
+        """
+        batch_size = x.size(0)
+        # (N, C, THW)
+        # this reshaping and permutation is from the spacetime_nonlocal function in the original Caffe2 implementation
+        g_x = self.g(x).view(batch_size, self.inter_channels, -1)
+        g_x = g_x.permute(0, 2, 1)
+
+        theta_x = self.theta(x).view(batch_size, self.inter_channels, -1)
+        phi_x = self.phi(x).view(batch_size, self.inter_channels, -1)
+        theta_x = theta_x.permute(0, 2, 1)
+        f = torch.matmul(theta_x, phi_x)
+
+        f_div_C = F.softmax(f, dim=-1)
+        y = torch.matmul(f_div_C, g_x)
+
+        # contiguous here just allocates contiguous chunk of memory
+        y = y.permute(0, 2, 1).contiguous()
+        y = y.view(batch_size, self.inter_channels, *x.size()[2:])
+
+        W_y = self.W_z(y)
+        # residual connection
+        z = W_y + x
+
+        return z
+
+
 if __name__ == '__main__':
-    feature = torch.ones((32, 2048, 16, 16))
-    vit = ViTEncoder(in_size=16, patch_size=2, depth=2, in_dim=2048, embed_dim=1024, attn_dim=2048, mlp_ratio=2)
-    print(f"vit Model: {sum(p.nelement() for p in vit.parameters() if p.requires_grad == True) / 1e6}M")
+    # feature = torch.ones((32, 2048, 16, 16))
+    # vit = ViTEncoder(in_size=16, patch_size=2, depth=2, in_dim=2048, embed_dim=1024, attn_dim=2048, mlp_ratio=2)
+    # print(f"vit Model: {sum(p.nelement() for p in vit.parameters() if p.requires_grad == True) / 1e6}M")
     # output, attn_list = vit.evaluation(feature)
     # print(attn_list[0].shape)
-    output = vit(feature)
-    print(output.shape)
+    # output = vit(feature)
+    # print(output.shape)
+
+    for bn_layer in [True, False]:
+        img = torch.zeros(2, 3, 20, 20)
+        net = NLBlockND(in_channels=3, bn_layer=bn_layer)
+        out = net(img)
+        print(out.size())
