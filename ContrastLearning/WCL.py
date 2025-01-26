@@ -59,7 +59,7 @@ class WCL(nn.Module):
         one_hot_gender = F.one_hot(gender.type(torch.LongTensor), num_classes=2).squeeze().float().cuda()
         gender_mask = torch.matmul(one_hot_gender, one_hot_gender.t())
         score_matrix = score_matrix * gender_mask
-        # print(score_matrix)
+        print(score_matrix)
         return score_matrix
 
     def count_distance_out(self, logit):
@@ -162,7 +162,7 @@ class WCL(nn.Module):
 
 
 if __name__ == '__main__':
-    wcl = WCL(p=0.5, tempS=1, thresholdS=0.2, tempW=0.2)
+    wcl = WCL(p=0.5, tempS=1, thresholdS=0.1, tempW=0.2)
     # wcl = WCL()
     for name, param in wcl.parameters():
         print(name)
@@ -181,8 +181,8 @@ if __name__ == '__main__':
     logit = F.normalize(logit, dim=1)
     print("male score matrix")
     wcl(logit, label, male)
-    print("female score matrix")
-    wcl(logit, label, female)
+    # print("female score matrix")
+    # wcl(logit, label, female)
 
 
 

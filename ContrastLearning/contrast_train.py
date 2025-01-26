@@ -31,7 +31,7 @@ flags['data_dir'] = '../archive'
 flags['student_path'] = "./KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin"
 flags['save_path'] = '../../autodl-tmp/KD_All_Output_3090'
 flags['model_name'] = 'Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_4K_1_11_96_Pretrain'
-flags['node'] = '复现后两层学习加入初始蒸馏权重，并在4K上跑，对比消融的基础'
+flags['node'] = '4K上跑，对比消融，修改WCL参数'
 flags['seed'] = 1
 flags['lr_decay_step'] = 10
 flags['lr_decay_ratio'] = 0.5
@@ -40,7 +40,7 @@ flags['weight_decay'] = 0
 flags['best_loss'] = 0
 flags['triple_loss_0_lambda'] = 0.1
 flags['triple_loss_1_lambda'] = 0.1
-flags['WCL_setting'] = dict(p=0.5, tempS=1, thresholdS=0.1, tempW=0.2)
+flags['WCL_setting'] = dict(p=0.5, tempS=2, thresholdS=0.1, tempW=0.2)
 
 
 seed = flags['seed']
@@ -225,7 +225,7 @@ if __name__ == "__main__":
     valid_path = os.path.join(data_dir, "valid")
     test_path = os.path.join(data_dir, "test")
 
-    train_csv = os.path.join(data_dir, "train.csv")
+    train_csv = os.path.join(data_dir, "train_4K.csv")
     train_df = pd.read_csv(train_csv)
     valid_csv = os.path.join(data_dir, "valid.csv")
     valid_df = pd.read_csv(valid_csv)
