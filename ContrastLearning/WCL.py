@@ -162,7 +162,7 @@ class WCL(nn.Module):
 
 
 if __name__ == '__main__':
-    wcl = WCL(p=0.5, tempS=2, thresholdS=0.1, tempW=0.2)
+    wcl = WCL(p=0.5, tempS=1, thresholdS=0.2, tempW=0.2)
     # wcl = WCL()
     for name, param in wcl.parameters():
         print(name)

@@ -736,7 +736,7 @@ class Student_Contrast_Model_Pretrain_NLBlockND(nn.Module):
         self.gender_encoder = backbone.gender_encoder
         self.gender_bn = backbone.gender_bn
 
-        self.nlnn = NLBlockND(in_channels=2048)
+        self.nlnn = NLBlockND(in_channels=2048, bn_layer=False)
 
         self.fc = backbone.fc
 

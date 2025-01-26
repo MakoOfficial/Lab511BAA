@@ -18,8 +18,8 @@ data_dir = "E:/code/Dataset/RSNA"
 # }
 
 csv_map = {
-    "train": '../Contrast_Output/Contrast_Full_Pretrain_NoBN_Scale_GCN_1_19_alterLR_200epoch/Contrast_Gender_Pretrain_NoBN_Scale_train.csv',
-    "valid": '../Contrast_Output/Contrast_Full_Pretrain_NoBN_Scale_GCN_1_19_alterLR_200epoch/Contrast_Gender_Pretrain_NoBN_Scale_valid.csv',
+    # "train": '../Contrast_Output/Contrast_Full_Pretrain_NoBN_Scale_GCN_1_19_alterLR_200epoch/Contrast_Gender_Pretrain_NoBN_Scale_train.csv',
+    "valid": '../Contrast_Output/NoBN/Contrast_WCL_IN_CBAM_AVGPool_AdaA_GenderPlus_Full_1_11_96_Pretrain_NoBN_MSE/valid_origin_3.73.csv',
 }
 
 

@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import torch.nn.functional as F
 from PIL import Image
 from einops import rearrange
+import cv2
 from collections import Counter
 
 stage6_boneage = [14, 12,
@@ -418,6 +419,82 @@ def save_contrast_attn_6Stage(test_loader, model, save_path):
                 plt.close('all')
 
 
+def save_s3_attnImg(s3, age_list, gender_list, id_list, save_path, data_path):
+    save_path = os.path.join(save_path, "overlay_attn_oriSize")
+    os.makedirs(save_path, exist_ok=True)
+    with torch.no_grad():
+        img_num = len(s3)
+        for i in range(img_num):
+            """对于第i张图片"""
+            age = age_list[i]
+            img_path = f"{data_path}/{int(id_list[i])}.png"
+            save_name = f"{int(age)}_{int(gender_list[i])}_{int(id_list[i])}.png"
+            heap_map = s3[i].squeeze().cpu().numpy()
+            heap_map = heap_map / np.max(heap_map)
+            heap_map = np.uint8(255 * heap_map)
+            overlay_attention_map(img_path, heap_map, alpha=0.6, save_path=save_path, img_id=save_name)
+
+
+def save_s3_attnImg_6Stage(test_loader, model, save_path_main, data_path):
+    """输出的图片数量一定得是12张"""
+    model.eval()
+    save_path = os.path.join(save_path_main, "overlay_attn_oriSize")
+    os.makedirs(save_path, exist_ok=True)
+    with torch.no_grad():
+        for batch_idx, data in enumerate(test_loader):
+
+            image, gender = data[0]
+            image = image.type(torch.FloatTensor).cuda()
+            gender = gender.type(torch.FloatTensor).cuda()
+            ids = data[2]
+
+            class_feature, _, _, s1, s2, s3, s4 = model(image, gender)
+            img_num = len(image)
+            for i in range(img_num):
+                """对于第i张图片"""
+                age = stage6_boneage[i]
+                gender = i % 2
+                img_path = f"{data_path}/{int(ids[i])}.png"
+                save_name = f"{age}_{gender}_Contrast_s3.png"
+                heap_map = s3[i].squeeze().cpu().numpy()
+                heap_map = heap_map / np.max(heap_map)
+                heap_map = np.uint8(255 * heap_map)
+                overlay_attention_map(img_path, heap_map, alpha=0.6, save_path=save_path, img_id=save_name)
+                # heap_map = cv2.applyColorMap(heap_map, cv2.COLORMAP_JET)
+                # heap_map = cv2.resize(heap_map, (256, 256))
+                # print(heap_map.shape)
+                # cv2.imwrite(os.path.join(save_path, save_name), heap_map)
+
+
+def overlay_attention_map(image_path, attention_map, alpha, save_path, img_id):
+    attn_path = os.path.join(save_path, "attn_rainbow")
+    overlay_path = os.path.join(save_path, "overlay")
+    os.makedirs(attn_path, exist_ok=True)
+    os.makedirs(overlay_path, exist_ok=True)
+
+    image = cv2.imread(image_path)
+    # image = cv2.resize(image, (256, 256), interpolation=cv2.INTER_AREA)
+    attention_map = cv2.resize(attention_map, (image.shape[1], image.shape[0]), interpolation=cv2.INTER_CUBIC)
+    cv2.imwrite(os.path.join(attn_path, img_id), attention_map)
+    attn_map_resized = attention_map
+    mask = attn_map_resized > 10
+    # attn_map_resized[attn_map_resized <= 10] = 0
+    new_max = 255
+    new_min = 50
+    if np.any(mask):
+        old_min = attn_map_resized[mask].min()
+        old_max = attn_map_resized[mask].max()
+        # 线性缩放公式： new_value = (old_value - old_min) / (old_max - old_min) * (new_max - new_min) + new_min
+        attn_map_resized[mask] = ((attn_map_resized[mask] - old_min) /
+                                 (old_max - old_min) * (new_max - new_min) + new_min).astype(np.uint8)
+    attn_map_resized = cv2.GaussianBlur(attn_map_resized, (3, 3), 0)
+    heatmap = cv2.applyColorMap(attn_map_resized, cv2.COLORMAP_JET)
+    # overlay = image.copy()
+    # overlay[mask] = cv2.addWeighted(image[mask], alpha, heatmap[mask], 1 - alpha, 0)
+    overlay = cv2.addWeighted(image, alpha, heatmap, 1-alpha, 0)
+    cv2.imwrite(os.path.join(overlay_path, img_id), overlay)
+
+
 def save_attn_all(s3, s4, img_ids, save_path):
     attn_path = os.path.join(save_path, "attn_dir")
     os.makedirs(attn_path, exist_ok=True)
@@ -478,40 +555,40 @@ def save_attn_all_KD(s1, s2, s3, s4, img_ids, save_path):
             plt.close('all')
 
 
-def save_attn_all_ViT(attn_list, img_ids, save_path):
-    attn_path = os.path.join(save_path, "attn_ViT_dir")
-    os.makedirs(attn_path, exist_ok=True)
-    with torch.no_grad():
-        img_num = len(attn_list)
-        num_cols = 4
-        for i in range(img_num):
-            """对于第i张图片"""
-            attn = attn_list[i]
-            attn = rearrange(attn, 'b c (h w) -> b c h w', h=8, w=8)
-            fig, axes = plt.subplots(1, num_cols, figsize=(15, 5))
-            save_name = f"{int(img_ids[i])}.png"
-
-            axes[0].imshow(s1[i].squeeze().cpu().numpy(), cmap='viridis')
-            axes[0].set_title("attn_s1")
-            axes[0].axis('off')
-
-            axes[1].imshow(s2[i].squeeze().cpu().numpy(), cmap='viridis')
-            axes[1].set_title("attn_s2")
-            axes[1].axis('off')
-
-            axes[2].imshow(s3[i].squeeze().cpu().numpy(), cmap='viridis')
-            axes[2].set_title("attn_s3")
-            axes[2].axis('off')
-
-            axes[3].imshow(s4[i].squeeze().cpu().numpy(), cmap='viridis')
-            axes[3].set_title("attn_s4")
-            axes[3].axis('off')
-
-            plt.tight_layout()
-            plt.savefig(os.path.join(attn_path, save_name))
-
-            plt.clf()
-            plt.close('all')
+# def save_attn_all_ViT(attn_list, img_ids, save_path):
+#     attn_path = os.path.join(save_path, "attn_ViT_dir")
+#     os.makedirs(attn_path, exist_ok=True)
+#     with torch.no_grad():
+#         img_num = len(attn_list)
+#         num_cols = 4
+#         for i in range(img_num):
+#             """对于第i张图片"""
+#             attn = attn_list[i]
+#             attn = rearrange(attn, 'b c (h w) -> b c h w', h=8, w=8)
+#             fig, axes = plt.subplots(1, num_cols, figsize=(15, 5))
+#             save_name = f"{int(img_ids[i])}.png"
+#
+#             axes[0].imshow(s1[i].squeeze().cpu().numpy(), cmap='viridis')
+#             axes[0].set_title("attn_s1")
+#             axes[0].axis('off')
+#
+#             axes[1].imshow(s2[i].squeeze().cpu().numpy(), cmap='viridis')
+#             axes[1].set_title("attn_s2")
+#             axes[1].axis('off')
+#
+#             axes[2].imshow(s3[i].squeeze().cpu().numpy(), cmap='viridis')
+#             axes[2].set_title("attn_s3")
+#             axes[2].axis('off')
+#
+#             axes[3].imshow(s4[i].squeeze().cpu().numpy(), cmap='viridis')
+#             axes[3].set_title("attn_s4")
+#             axes[3].axis('off')
+#
+#             plt.tight_layout()
+#             plt.savefig(os.path.join(attn_path, save_name))
+#
+#             plt.clf()
+#             plt.close('all')
 
 import pandas as pd
 def show_attn_all_KD(s1, s2, s3, s4, img_ids, save_path):
