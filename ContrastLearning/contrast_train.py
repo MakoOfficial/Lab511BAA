@@ -40,7 +40,7 @@ flags['weight_decay'] = 0
 flags['best_loss'] = 0
 flags['triple_loss_0_lambda'] = 0.1
 flags['triple_loss_1_lambda'] = 0.1
-flags['WCL_setting'] = dict(p=0.5, tempS=2, thresholdS=0.1, tempW=0.2)
+flags['WCL_setting'] = dict(p=0.5, tempS=1, thresholdS=0.1, tempW=0.2)
 
 
 seed = flags['seed']
@@ -225,7 +225,8 @@ if __name__ == "__main__":
     valid_path = os.path.join(data_dir, "valid")
     test_path = os.path.join(data_dir, "test")
 
-    train_csv = os.path.join(data_dir, "train_4K.csv")
+    # train_csv = os.path.join(data_dir, "train_4K.csv")
+    train_csv = os.path.join(data_dir, "train.csv")
     train_df = pd.read_csv(train_csv)
     valid_csv = os.path.join(data_dir, "valid.csv")
     valid_df = pd.read_csv(valid_csv)

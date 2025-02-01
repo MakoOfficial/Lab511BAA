@@ -169,7 +169,7 @@ if __name__ == '__main__':
     testDataset = SegmentationDataset(test_image_dir, test_label_dir, transform=transform_val)
 
     compare_model = UNets.Attn_UNet(img_ch=1, output_ch=1).cuda()
-    compare_path = '../Unet/ckp/Unet/unet_segmentation_Attn_Unet_RSNA_256_Full_50epoch_3.pth'
+    compare_path = '../ckp/Unet/unet_segmentation_Attn_UNet.pth'
     compare_model.load_state_dict(torch.load(compare_path), strict=True)
 
     data, predict, label, _, _, _, _, _, compare1, compare2, compare3, compare4 = eval_pic(compare_model, testDataset,

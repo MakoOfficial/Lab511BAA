@@ -361,18 +361,21 @@ def get_Attn_Unet_classifier(unet_path):
 
 
 if __name__ == '__main__':
-    unet_classifier = get_Attn_Unet_classifier("../ckp/Unet/unet_segmentation_Attn_UNet.pth")
-    print(f"unet_classifier Unet: {sum(p.nelement() for p in unet_classifier.parameters() if p.requires_grad == True) / 1e6}M")
+    # unet_classifier = get_Attn_Unet_classifier("../ckp/Unet/unet_segmentation_Attn_UNet.pth")
+    # print(f"unet_classifier Unet: {sum(p.nelement() for p in unet_classifier.parameters() if p.requires_grad == True) / 1e6}M")
+    #
+    # data = torch.rand((2, 1, 256, 256), dtype=torch.float32)
+    # gender = torch.rand((2, 1), dtype=torch.float32)
+    # class_vector = unet_classifier(data, gender)
+    #
+    # print(f"class_vector.shape: {class_vector.shape}")
+    #
+    # unet_backbone = Attn_Unet_Classifier(Attn_UNet(img_ch=1, output_ch=1))
+    # x1, x2, x3, x4, x5 = unet_backbone.get_features(data)
+    #
+    # print(f"x1.shape: {x1.shape}, x2.shape: {x2.shape}, x3.shape: {x3.shape}, "
+    #       f"x4.shape: {x4.shape}, x5.shape: {x5.shape}")
 
-    data = torch.rand((2, 1, 256, 256), dtype=torch.float32)
-    gender = torch.rand((2, 1), dtype=torch.float32)
-    class_vector = unet_classifier(data, gender)
-
-    print(f"class_vector.shape: {class_vector.shape}")
-
-    unet_backbone = Attn_Unet_Classifier(Attn_UNet(img_ch=1, output_ch=1))
-    x1, x2, x3, x4, x5 = unet_backbone.get_features(data)
-
-    print(f"x1.shape: {x1.shape}, x2.shape: {x2.shape}, x3.shape: {x3.shape}, "
-          f"x4.shape: {x4.shape}, x5.shape: {x5.shape}")
-
+    unet = get_Attn_Unet()
+    print(
+        f"Unet: {sum(p.nelement() for p in unet.parameters() if p.requires_grad == True) / 1e6}M")

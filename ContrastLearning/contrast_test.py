@@ -61,7 +61,7 @@ def evaluate_fn(val_loader):
             # log_valid_result_to_csv(id, label.cpu(), gender.cpu(), y_pred.cpu(), batch_loss.cpu(), log_path)
             # log_valid_result_logits_to_csv(id, label.cpu(), gender.cpu(), y_pred.cpu(), batch_loss.cpu(), logits_list.cpu(), log_path)
             # save_attn_all_KD(s1, s2, s3, s4, id, ckp_dir)
-            save_s3_attnImg(s3, label.cpu(), gender.cpu(), id, train_attn, data_path=train_set.file_path)
+            save_s3_attnImg(s3, label.cpu(), gender.cpu(), id, train_attn, data_path=test_set.file_path)
             # show_attn_all_KD(s1[5], s2[5], s3[5], s4[5], id[5], ckp_dir)
     mae_loss = mae_loss / val_total_size
     print(f"valid loss: {mae_loss}")
@@ -71,11 +71,12 @@ if __name__ == "__main__":
     # set save dir of this train
 
     ckp_dir = os.path.dirname(flags['contrast_path'])
-    train_attn = os.path.join(ckp_dir, "train_attn")
+    train_attn = os.path.join(ckp_dir, "overlay_attn_Test")
     #   prepare student model
 
     student_path = flags['student_path']
-    student_model = get_student_contrast_model_pretrain(student_path).cuda()
+    # student_model = get_student_contrast_model_pretrain(student_path).cuda()
+    student_model = get_student_contrast_model(student_path).cuda()
     # student_model = get_student_contrast_model_pretrain_vit(student_path).cuda()
     # student_model = get_student_contrast_model_pretrain_gcn(student_path).cuda()
 
@@ -93,7 +94,7 @@ if __name__ == "__main__":
 
     # train_csv_ori = os.path.join(data_dir, "train_4K.csv")
     # train_df_ori = pd.read_csv(train_csv_ori)
-    train_df = pd.read_csv(os.path.join(data_dir, "train.csv"))
+    train_df = pd.read_csv(os.path.join(data_dir, "train_21forContrastWorks.csv"))
     valid_df = pd.read_csv(os.path.join(data_dir, "valid.csv"))
     valid_test_df = pd.read_csv(os.path.join(data_dir, "valid_test.csv"))
     test_df = pd.read_csv(os.path.join(data_dir, "test.csv"))
@@ -146,8 +147,8 @@ if __name__ == "__main__":
     )
 
     # evaluate_fn(valid_loader)
-    evaluate_fn(train_loader)
-    # evaluate_fn(test_loader)
+    # evaluate_fn(train_loader)
+    evaluate_fn(test_loader)
     # s3_dir = os.path.join(ckp_dir, "s3_dir")
     # os.makedirs(s3_dir, exist_ok=True)
     # save_s3_attnImg_6Stage(test_loader=valid_test_loader, model=student_model, save_path=s3_dir, data_path=valid_test_set.file_path)

@@ -125,6 +125,25 @@ class RSNAMergeDataset(BaseDataset):
         return (self.Trans(image), Tensor([row['male']])), row['zscore'], row['boneage']
 
 
+class RSNAMergeValidDataset(BaseDataset):
+    def __init__(self, df, file_path, age_mean, age_div, img_size):
+        super().__init__(df, file_path, age_mean, age_div)
+        self.img_size = img_size
+        self.Trans = get_valid_transform(img_size)
+
+    def get_image_path(self, index):
+        row = self.df.iloc[index]
+        num = int(row['id'])
+        set = row['path']
+        file_path = f"{self.file_path}/{set}/{num}.png"
+        return row, file_path
+
+    def __getitem__(self, index):
+        row, image_path = self.get_image_path(index)
+        image = Image.open(image_path).convert('L')
+
+        return (self.Trans(image), Tensor([row['male']])), row['zscore'], row['boneage']
+
 
 class RSNAValidDataset(BaseDataset):
     def __init__(self, df, file_path, age_mean, age_div, img_size):

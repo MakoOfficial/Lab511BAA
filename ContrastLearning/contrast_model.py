@@ -1046,14 +1046,15 @@ if __name__ == '__main__':
 
     student_Contrast_Pretrain = get_student_contrast_model_pretrain(
         "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin").cuda()
+
     print(f"student_Contrast_Pretrain Model: {sum(p.nelement() for p in student_Contrast_Pretrain.parameters() if p.requires_grad == True) / 1e6}M")
-
-    student_Contrast_Pretrain_vit = get_student_contrast_model_pretrain_vit(
-        "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin").cuda()
-    print(
-        f"student_Contrast_Pretrain_vit Model: {sum(p.nelement() for p in student_Contrast_Pretrain_vit.parameters() if p.requires_grad == True) / 1e6}M")
-
-    student_Contrast_Pretrain_gcn = get_student_contrast_model_pretrain_gcn(
-        "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin").cuda()
-    print(
-        f"student_Contrast_Pretrain_gcn Model: {sum(p.nelement() for p in student_Contrast_Pretrain_gcn.parameters() if p.requires_grad == True) / 1e6}M")
+    #
+    # student_Contrast_Pretrain_vit = get_student_contrast_model_pretrain_vit(
+    #     "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin").cuda()
+    # print(
+    #     f"student_Contrast_Pretrain_vit Model: {sum(p.nelement() for p in student_Contrast_Pretrain_vit.parameters() if p.requires_grad == True) / 1e6}M")
+    #
+    # student_Contrast_Pretrain_gcn = get_student_contrast_model_pretrain_gcn(
+    #     "../KD_All_Output/KD_modify_firstConv_RandomCrop/KD_modify_firstConv_RandomCrop.bin").cuda()
+    # print(
+    #     f"student_Contrast_Pretrain_gcn Model: {sum(p.nelement() for p in student_Contrast_Pretrain_gcn.parameters() if p.requires_grad == True) / 1e6}M")

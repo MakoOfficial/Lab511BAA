@@ -49,6 +49,25 @@ class Final_Regression(nn.Module):
         # self.backbone.cls_Embedding_0 = nn.Sequential()
         # self.backbone.cls_Embedding_1 = nn.Sequential()
 
+    def manifold(self, image, gender):
+        contrast_feature, _, _, attn0, attn1, attn2, attn3 = self.backbone.downStream(image, gender)
+
+        gender_encode = F.relu(self.gender_bn(self.gender_encoder(gender)))  # B * 32
+
+        x = F.adaptive_avg_pool2d(contrast_feature, 1)
+        x = torch.flatten(x, 1)
+        x = torch.cat([x, gender_encode], dim=1)
+
+        # x = self.fc(x)
+        for i in range(len(self.fc)):
+            x = self.fc[i](x)
+            if i == 3:
+                linear_out = x
+        assert linear_out.shape[-1] == 512
+        linear_out = F.normalize(linear_out, dim=1)
+
+        return linear_out, 0, 0, 0, 0
+
 
 class Final_Regression_ViT(nn.Module):
     def __init__(self, backbone):
@@ -113,8 +132,8 @@ def get_final_regression(backbone_path):
     if backbone_path is not None:
         backbone.load_state_dict(torch.load(backbone_path))
 
-    # return Final_Regression(backbone)
-    return Final_Regression_ViT(backbone)
+    return Final_Regression(backbone)
+    # return Final_Regression_ViT(backbone)
 
 
 if __name__ == '__main__':
